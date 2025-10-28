@@ -11,6 +11,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import pyttsx3
 from tkinter import messagebox
+import re
 
 def safe_json_loads(data):
     try:
@@ -53,7 +54,8 @@ class WeldingShopApp:
                 "success_export": "Excel file exported successfully!",
                 "error_fill": "Please fill Job ID and Welder Name",
                 "recording": "Recording... Speak now",
-                "mic_tooltip": "Click to record voice"
+                "mic_tooltip": "Click to record voice",
+                "confirm_text": "Is this correct: '{}'? (Yes to confirm and lock field, No to re-record)"
             },
             "ar": {
                 "title": "إدارة ورشة اللحام",
@@ -73,7 +75,28 @@ class WeldingShopApp:
                 "success_export": "تم تصدير ملف Excel بنجاح!",
                 "error_fill": "يرجى ملء رقم العمل واسم اللحام",
                 "recording": "جاري التسجيل... تحدث الآن",
-                "mic_tooltip": "انقر للتسجيل الصوتي"
+                "mic_tooltip": "انقر للتسجيل الصوتي",
+                "confirm_text": "هل هذا صحيح: '{}'؟ (نعم للتأكيد وتثبيت الحقل، لا لإعادة التسجيل)"
+            }
+        }
+        
+        # Number word dictionaries for conversion
+        self.number_dicts = {
+            "en": {
+                'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+                'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+                'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
+                'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
+                'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
+                'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
+            },
+            "ar": {
+                'صفر': 0, 'واحد': 1, 'اثنان': 2, 'ثلاثة': 3, 'أربعة': 4,
+                'خمسة': 5, 'ستة': 6, 'سبعة': 7, 'ثمانية': 8, 'تسعة': 9, 'عشرة': 10,
+                'أحد عشر': 11, 'اثنا عشر': 12, 'ثلاثة عشر': 13, 'أربعة عشر': 14, 'خمسة عشر': 15,
+                'ستة عشر': 16, 'سبعة عشر': 17, 'ثمانية عشر': 18, 'تسعة عشر': 19,
+                'عشرون': 20, 'ثلاثون': 30, 'أربعون': 40, 'خمسون': 50,
+                'ستون': 60, 'سبعون': 70, 'ثمانون': 80, 'تسعون': 90
             }
         }
         
@@ -88,12 +111,57 @@ class WeldingShopApp:
         self.create_ui()
         self.update_language()
         
+    def words_to_digits(self, text, lang):
+        """Convert number words in text to digits if the entire text represents a number.
+        Handles sequences (concat) vs compounds (sum)."""
+        if not text:
+            return None
+        
+        # First, check if it's already digits (spoken as digits, e.g., "5 3 1")
+        cleaned = re.sub(r'\s+', '', text.strip())
+        if re.match(r'^\d+$', cleaned):
+            return cleaned  # Already a number string
+        
+        # Normalize text
+        if lang == "en":
+            normalized = text.lower().strip()
+        else:
+            normalized = text.strip()  # Arabic doesn't have case
+        
+        # Split into words
+        words = re.split(r'\s+and\s+|and\s+|,\s*|\s+', normalized)
+        words = [w.strip() for w in words if w.strip()]
+        
+        if not words:
+            return None
+        
+        # Check if all words are number words
+        num_values = []
+        single_digits_only = True
+        for word in words:
+            num = self.number_dicts[lang].get(word, None)
+            if num is None:
+                return None  # Not a pure number
+            num_values.append(num)
+            if num > 9:  # Tens or higher
+                single_digits_only = False
+        
+        if not num_values:
+            return None
+        
+        # Logic: If all single digits (0-9), concatenate as sequence (e.g., "five three one" → "531")
+        # Else, sum for compounds (e.g., "twenty three" → 23)
+        if single_digits_only:
+            return ''.join(str(num) for num in num_values)
+        else:
+            return str(sum(num_values))
+    
     def load_vosk_model(self):
         """Load Vosk model for speech recognition"""
         try:
             model_path = "models/vosk-model-en-us-0.22"
             if self.current_lang == "ar":
-                model_path = "models/vosk-model-en-us-0.22"
+                model_path = "models/vosk-model-ar-mgb2-0.4"  # Fixed: Added "models/" prefix
             
             if os.path.exists(model_path):
                 model = vosk.Model(model_path)
@@ -101,6 +169,10 @@ class WeldingShopApp:
                 print(f"Loaded Vosk model: {model_path}")
             else:
                 print(f"Warning: Vosk model not found at {model_path}")
+                if self.current_lang == "ar":
+                    print("Download Arabic model: https://alphacephei.com/vosk/models (vosk-model-ar-mgb2-0.4.zip) and unzip to models/")
+                else:
+                    print("Download English model: https://alphacephei.com/vosk/models (vosk-model-en-us-0.22.zip) and unzip to models/")
                 self.recognizer = None
         except Exception as e:
             print(f"Error loading Vosk model: {e}")
@@ -527,33 +599,73 @@ class WeldingShopApp:
             self.is_recording = False
 
         text_output = (text_output or "").strip()
-        print(f"[DEBUG] Final text_output: '{text_output}'")
+        print(f"[DEBUG] Raw text_output: '{text_output}'")
+        
+        # Convert number words to digits if applicable
+        converted = self.words_to_digits(text_output, self.current_lang)
+        if converted:
+            text_output = converted
+            print(f"[DEBUG] Converted number: '{text_output}'")
+        else:
+            print(f"[DEBUG] No number conversion applied")
+        
         if text_output:
-            # Insert text into UI on main thread
+            # Insert and confirm on main thread
             try:
-                self.root.after(0, lambda: self._insert_text(field_id, text_output))
-                print("[DEBUG] Scheduled text insertion")
+                self.root.after(0, lambda: self._insert_and_confirm(field_id, text_output))
+                print("[DEBUG] Scheduled insert and confirm")
             except Exception as e:
-                print(f"[DEBUG] Text insertion scheduling error: {e}")
-                # Fallback directly if after fails
-                self._insert_text(field_id, text_output)
+                print(f"[DEBUG] Scheduling error: {e}")
+                self._insert_and_confirm(field_id, text_output)
             print(f"[DEBUG] Recognized for {field_id}: {text_output}")
         else:
             print("[DEBUG] No speech detected or recognition returned empty text")
 
-    def _insert_text(self, field_id, text):
-        """Insert transcribed text into field"""
-        print(f"[DEBUG] _insert_text called for {field_id} with text: '{text}'")
+    def _insert_and_confirm(self, field_id, text):
+        """Insert transcribed text, ask for confirmation, and lock if confirmed."""
+        print(f"[DEBUG] _insert_and_confirm called for {field_id} with text: '{text}'")
         entry = self.fields[field_id]["entry"]
+        mic_btn = self.fields[field_id]["mic"]
         
+        # Insert the text
         if isinstance(entry, tk.Text):
             entry.insert(tk.END, text + " ")
-            print("[DEBUG] Inserted into Text widget")
+            current_text = entry.get("1.0", tk.END).strip()
         else:
             current = entry.get()
             entry.delete(0, tk.END)
             entry.insert(0, current + " " + text if current else text)
-            print("[DEBUG] Inserted into Entry widget")
+            current_text = entry.get().strip()
+        
+        print(f"[DEBUG] Inserted text: '{current_text}'")
+        
+        # Ask for confirmation
+        t = self.translations[self.current_lang]
+        confirm_msg = t["confirm_text"].format(current_text)
+        if messagebox.askyesno("Confirm Input", confirm_msg):
+            # Confirmed: Make field uneditable and disable mic
+            if isinstance(entry, tk.Text):
+                entry.config(state='disabled')
+            else:
+                entry.config(state='readonly')
+            mic_btn.config(state='disabled', bg='gray')
+            print(f"[DEBUG] Field '{field_id}' locked after confirmation")
+            self.status_label.config(text="Confirmed and locked!", fg="green")
+            self.root.after(2000, lambda: self.status_label.config(text=""))
+        else:
+            # Not confirmed: Clear the field and re-enable mic
+            if isinstance(entry, tk.Text):
+                entry.delete("1.0", tk.END)
+            else:
+                entry.delete(0, tk.END)
+            mic_btn.config(state='normal', bg="#2a5298")
+            print(f"[DEBUG] Field '{field_id}' cleared for re-recording")
+            self.status_label.config(text="Cleared - please re-record", fg="orange")
+            self.root.after(2000, lambda: self.status_label.config(text=""))
+
+    def _insert_text(self, field_id, text):
+        """Insert transcribed text into field (deprecated, use _insert_and_confirm)"""
+        pass  # Not used anymore
 
     def add_entry(self):
         """Add new welding entry"""
@@ -593,12 +705,23 @@ class WeldingShopApp:
 
     def clear_form(self):
         """Clear all form fields"""
-        for field_id in ["job_id", "welder_name", "material", "weld_type"]:
-            self.fields[field_id]["entry"].delete(0, tk.END)
+        for field_id in ["job_id", "welder_name", "material", "weld_type", "description"]:
+            field = self.fields[field_id]
+            entry = field["entry"]
+            mic = field["mic"]
+            if isinstance(entry, tk.Text):
+                entry.config(state='normal')
+                entry.delete("1.0", tk.END)
+            else:
+                entry.config(state='normal')
+                entry.delete(0, tk.END)
+            mic.config(state='normal', bg="#2a5298")
         
-        self.fields["description"]["entry"].delete("1.0", tk.END)
+        # Reset date
+        self.fields["date"]["entry"].config(state='normal')
         self.fields["date"]["entry"].delete(0, tk.END)
         self.fields["date"]["entry"].insert(0, datetime.now().strftime("%Y-%m-%d"))
+        self.fields["date"]["mic"].config(state='normal', bg="#2a5298")
 
     def refresh_table(self):
         """Refresh the records table"""
