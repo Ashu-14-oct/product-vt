@@ -877,101 +877,101 @@ class WeldingShopApp:
             self.records = [r for r in self.records if r["job_id"] != job_id]
             self.save_data()
             self.refresh_table()
-
     def export_excel(self):
-        """Export records to Excel"""
+        """Exports only filled fields to the welding Excel template, preserving logo & formatting."""
+        from openpyxl import load_workbook
+        from openpyxl.styles import Alignment
+        import shutil
+        from tkinter import messagebox, filedialog
+        import os
+
         if not self.records:
             messagebox.showwarning("Warning", "No records to export")
             return
 
-        t = self.translations[self.current_lang]
-
         filename = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
             filetypes=[("Excel files", "*.xlsx")],
-            initialfile=f"welding_records_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            initialfile=f"ATNM_Welding_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
         )
-
         if not filename:
             return
 
         try:
-            wb = Workbook()
+            template_path = "ATNM-ODC-MF-014-Daily Welding Production - Visual Inspection Report-Rev 01.xlsx"
+            if not os.path.exists(template_path):
+                messagebox.showerror("Error", f"Template not found:\n{template_path}")
+                return
+
+            # Copy the template to avoid overwriting original
+            shutil.copyfile(template_path, filename)
+
+            # Load workbook without losing styles
+            wb = load_workbook(filename)
             ws = wb.active
-            ws.title = "Welding Records"
 
-            # Header style
-            header_fill = PatternFill(
-                start_color="2a5298", end_color="2a5298", fill_type="solid"
-            )
-            header_font = Font(bold=True, color="FFFFFF", size=12)
-            border = Border(
-                left=Side(style="thin"),
-                right=Side(style="thin"),
-                top=Side(style="thin"),
-                bottom=Side(style="thin"),
-            )
-
-            # Headers
-            headers = [
-                "Job ID",
-                "Weld ID",
-                "KP Sec",
-                "WPS No",
-                "Material Gr",
-                "Heat No",
-                "Size",
-                "Thk",
-                "Weld Side",
-                "Root",
-                "Material Comb",
-                "Pipe No",
-                "Pipe Length",
-                "Welder Name",
-                "Material",
-                "Weld Type",
-                "Description",
-                "Date",
-            ]
-            for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col, value=header)
-                cell.fill = header_fill
-                cell.font = header_font
-                cell.border = border
+            # Helper: write safely (supports merged cells)
+            def write_safe(cell_ref, value):
+                if value is None or str(value).strip() == "":
+                    return  # ⛔ Skip empty fields
+                cell = ws[cell_ref]
+                for merged in ws.merged_cells.ranges:
+                    if cell.coordinate in merged:
+                        top_left = ws.cell(merged.min_row, merged.min_col)
+                        top_left.value = value
+                        top_left.alignment = Alignment(horizontal="center", vertical="center")
+                        return
+                cell.value = value
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            # Data
-            for row, record in enumerate(self.records, 2):
-                ws.cell(row=row, column=1, value=record["job_id"]).border = border
-                ws.cell(row=row, column=2, value=record["weld_id"]).border = border
-                ws.cell(row=row, column=3, value=record["kp_sec"]).border = border
-                ws.cell(row=row, column=4, value=record["wps_no"]).border = border
-                ws.cell(row=row, column=5, value=record["material_gr"]).border = border
-                ws.cell(row=row, column=6, value=record["heat_no"]).border = border
-                ws.cell(row=row, column=7, value=record["size"]).border = border
-                ws.cell(row=row, column=8, value=record["thk"]).border = border
-                ws.cell(row=row, column=9, value=record["weld_side"]).border = border
-                ws.cell(row=row, column=10, value=record["root"]).border = border
-                ws.cell(row=row, column=11, value=record["material_comb"]).border = border
-                ws.cell(row=row, column=12, value=record["pipe_no"]).border = border
-                ws.cell(row=row, column=13, value=record["pipe_length"]).border = border
-                ws.cell(row=row, column=14, value=record["welder_name"]).border = border
-                ws.cell(row=row, column=15, value=record["material"]).border = border
-                ws.cell(row=row, column=16, value=record["weld_type"]).border = border
-                ws.cell(row=row, column=17, value=record["description"]).border = border
-                ws.cell(row=row, column=18, value=record["date"]).border = border
+            # Define row pattern: data rows start at 11 and increment by 2
+            start_row = 11
+            row_gap = 2
 
-            # Adjust column widths
-            for col in range(1, 19):
-                ws.column_dimensions[chr(64 + col)].width = 20
+            # Go through each record
+            for idx, record in enumerate(self.records, start=1):
+                row = start_row + (idx - 1) * row_gap
 
+                # Each field is only written if present in record
+                write_safe(f"B{row}", idx)  # Always fill Sr.No
+                if record.get("kp_sec"): write_safe(f"C{row}", record["kp_sec"])
+                if record.get("weld_id"): write_safe(f"D{row}", record["weld_id"])
+                if record.get("wps_no"): write_safe(f"E{row}", record["wps_no"])
+
+                # Combine Material Gr. / Heat No. only if at least one present
+                if record.get("material_gr") or record.get("heat_no"):
+                    combined = f"{record.get('material_gr', '')} / {record.get('heat_no', '')}".strip(" / ")
+                    write_safe(f"F{row}", combined)
+
+                if record.get("size"): write_safe(f"H{row}", record["size"])
+                if record.get("thk"): write_safe(f"I{row}", record["thk"])
+                if record.get("weld_side"): write_safe(f"J{row}", record["weld_side"])
+                if record.get("root"): write_safe(f"M{row}", record["root"])
+                if record.get("material_comb"): write_safe(f"P{row}", record["material_comb"])
+                if record.get("pipe_no"): write_safe(f"Q{row}", record["pipe_no"])
+                if record.get("pipe_length"): write_safe(f"R{row}", record["pipe_length"])
+
+                # Welder/Date line (only if either is present)
+                if record.get("welder_name") or record.get("date"):
+                    remarks = f"Welder: {record.get('welder_name','')} | Date: {record.get('date','')}".strip(" | ")
+                    write_safe(f"S{row}", remarks)
+
+                # Fill inspection columns only if explicitly provided in record
+                if record.get("visual"): write_safe(f"N{row}", record["visual"])
+                if record.get("dimensional"): write_safe(f"O{row}", record["dimensional"])
+
+            # Save workbook
             wb.save(filename)
+            wb.close()
 
-            self.status_label.config(text=t["success_export"], fg="green")
+            self.status_label.config(text="✅ Excel exported successfully!", fg="green")
             self.root.after(3000, lambda: self.status_label.config(text=""))
+            messagebox.showinfo("Success", f"Excel exported successfully:\n{filename}")
 
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to export: {str(e)}")
+            messagebox.showerror("Error", f"Export failed:\n{e}")
+
+
 
     def load_data(self):
         """Load records from JSON file"""
