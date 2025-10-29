@@ -1080,8 +1080,8 @@ class WeldingShopApp:
             wb.save(filename)
             wb.close()
 
-            self.status_label.config(text="✅ Excel exported successfully!", fg="green")
-            self.root.after(3000, lambda: self.status_label.config(text=""))
+            self.status_label.configure(text="✅ Excel exported successfully!", text_color="green")
+            self.root.after(3000, lambda: self.status_label.configure(text=""))
             messagebox.showinfo("Success", f"Excel exported successfully:\n{filename}")
 
         except Exception as e:
