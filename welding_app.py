@@ -49,6 +49,17 @@ class WeldingShopApp:
                 "title": "Welding Shop Manager",
                 "add_form_title": "Add Welding Entry",
                 "job_id": "Job ID:",
+                "contract_number": "Contract No.",
+                "contract_title": "Contract Title:",
+                "report_number": "Report No.",
+                "po_wo_number": "PO / WO No.",
+                "client_wps_number": "Client WPS No.",
+                "project_title_wellID": "Project Title / Well ID:",
+                "drawing_no": "Drawing/ISO No.",
+                "line_no": "Line No.",
+                "site_name": "Site Name:",
+                "job_desc": "Job description:",
+                "location": "Location:",
                 "weld_id": "Weld ID:",
                 "kp_sec": "KP Sec:",
                 "wps_no": "WPS No:",
@@ -68,7 +79,7 @@ class WeldingShopApp:
                 "date": "Date:",
                 "add_entry": "Add Entry",
                 "clear_form": "Clear Form",
-                "download_excel": "Download Form",
+                "download_excel": "Download Excel",
                 "language": "Language:",
                 "theme": "Theme:",
                 "records_title": "Records",
@@ -79,11 +90,22 @@ class WeldingShopApp:
                 "recording": "Recording... Speak now",
                 "mic_tooltip": "Click to record voice",
                 "confirm_text": "Is this correct: '{}'? (Yes to confirm and lock field, No to re-record)",
-            },
-            "ar": {
+                },
+                "ar": {
                 "title": "إدارة ورشة اللحام",
                 "add_form_title": "إضافة سجل اللحام",
                 "job_id": "رقم العمل:",
+                "contract_number": "رقم العقد:",
+                "contract_title": "عنوان العقد:",
+                "report_number": "رقم التقرير:",
+                "po_wo_number": "رقم PO/WO:",
+                "client_wps_number": "رقم WPS العميل:",
+                "project_title_wellID": "عنوان المشروع / معرف البئر:",
+                "drawing_no": "رقم الرسم/ISO:",
+                "line_no": "رقم الخط:",
+                "site_name": "اسم الموقع:",
+                "job_desc": "وصف العمل:",
+                "location": "الموقع:",
                 "weld_id": "رقم اللحام:",
                 "kp_sec": "قسم KP:",
                 "wps_no": "رقم WPS:",
@@ -114,7 +136,7 @@ class WeldingShopApp:
                 "recording": "جاري التسجيل... تحدث الآن",
                 "mic_tooltip": "انقر للتسجيل الصوتي",
                 "confirm_text": "هل هذا صحيح: '{}'؟ (نعم للتأكيد وتثبيت الحقل، لا لإعادة التسجيل)",
-            },
+                },
         }
 
         # Number word dictionaries for conversion
@@ -284,7 +306,7 @@ class WeldingShopApp:
         # Two-column grid for fields
         self.fields = {}
         field_cfg = [
-            ("job_id", "Job ID:"), ("weld_id", "Weld ID:"), ("kp_sec", "KP Sec:"), ("wps_no", "WPS No:"),
+            ("job_id", "Job ID:"), ("contract_number", "Contract No."), ("contract_title", "Contract Title:"), ("report_number", "Report No.:"), ("po_wo_number", "PO / WO No.:"), ("client_wps_number", "Client WPS No.:"), ("project_title_wellID", "Project Title / Well ID:"), ("drawing_no", "Drawing/ISO No.:"), ("line_no", "Line No.:"), ("site_name", "Site Name:"), ("job_desc", "Job description:"), ("location", "Location:"),("weld_id", "Weld ID:"), ("kp_sec", "KP Sec:"), ("wps_no", "WPS No:"),
             ("material_gr", "Material Gr:"), ("heat_no", "Heat No:"), ("size", "Size(Inches):"), ("thk", "Thk(mm):"),
             ("weld_side", "Weld Side:"), ("root", "Root:"), ("material_comb", "Mtrl. Comb:"), ("pipe_no", "Pipe No:"),
             ("pipe_length", "Pipe length(mtrs):"), ("welder_name", "Welder Name:"), ("material", "Material:"),
@@ -842,8 +864,20 @@ class WeldingShopApp:
     def add_entry(self):
         """Add new welding entry"""
         t = self.translations[self.current_lang]
+
         # Get values
         job_id = self.fields["job_id"]["entry"].get().strip()
+        contract_number = self.fields["contract_number"]["entry"].get().strip()
+        contract_title = self.fields["contract_title"]["entry"].get().strip()
+        report_number = self.fields["report_number"]["entry"].get().strip()
+        po_wo_number = self.fields["po_wo_number"]["entry"].get().strip()
+        client_wps_number = self.fields["client_wps_number"]["entry"].get().strip()
+        project_title_wellID = self.fields["project_title_wellID"]["entry"].get().strip()
+        drawing_no = self.fields["drawing_no"]["entry"].get().strip()
+        line_no = self.fields["line_no"]["entry"].get().strip()
+        site_name = self.fields["site_name"]["entry"].get().strip()
+        job_desc = self.fields["job_desc"]["entry"].get().strip()
+        location = self.fields["location"]["entry"].get().strip()
         weld_id = self.fields["weld_id"]["entry"].get().strip()
         kp_sec = self.fields["kp_sec"]["entry"].get().strip()
         wps_no = self.fields["wps_no"]["entry"].get().strip()
@@ -861,6 +895,7 @@ class WeldingShopApp:
         weld_type = self.fields["weld_type"]["entry"].get().strip()
         description = self.fields["description"]["entry"].get("1.0", "end").strip()
         date = self.fields["date"]["entry"].get().strip()
+
         # Validation
         if not job_id or not welder_name:
             messagebox.showerror("Error", t["error_fill"])
@@ -869,6 +904,17 @@ class WeldingShopApp:
         record = {
             "id": datetime.now().timestamp(),
             "job_id": job_id,
+            "contract_number": contract_number,
+            "contract_title": contract_title,
+            "report_number": report_number,
+            "po_wo_number": po_wo_number,
+            "client_wps_number": client_wps_number,
+            "project_title_wellID": project_title_wellID,
+            "drawing_no": drawing_no,
+            "line_no": line_no,
+            "site_name": site_name,
+            "job_desc": job_desc,
+            "location": location,
             "weld_id": weld_id,
             "kp_sec": kp_sec,
             "wps_no": wps_no,
@@ -887,6 +933,7 @@ class WeldingShopApp:
             "description": description,
             "date": date,
         }
+
         self.records.insert(0, record)
         self.save_data()
         self.refresh_table()
@@ -897,9 +944,11 @@ class WeldingShopApp:
     def clear_form(self):
         """Clear all form fields"""
         for field_id in [
-            "job_id", "weld_id", "kp_sec", "wps_no", "material_gr", "heat_no", "size", "thk",
-            "weld_side", "root", "material_comb", "pipe_no", "pipe_length", "welder_name",
-            "material", "weld_type", "description", "date",
+            "job_id", "contract_number", "contract_title", "report_number", "po_wo_number",
+            "client_wps_number", "project_title_wellID", "drawing_no", "line_no", "site_name",
+            "job_desc", "location", "weld_id", "kp_sec", "wps_no", "material_gr", "heat_no",
+            "size", "thk", "weld_side", "root", "material_comb", "pipe_no", "pipe_length",
+            "welder_name", "material", "weld_type", "description", "date",
         ]:
             field = self.fields[field_id]
             entry = field["entry"]
