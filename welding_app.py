@@ -43,6 +43,18 @@ class WeldingShopApp:
             "en": {
                 "title": "Welding Shop Manager",
                 "job_id": "Job ID:",
+                "weld_id": "Weld ID:",
+                "kp_sec": "KP Sec:",
+                "wps_no": "WPS No:",
+                "material_gr": "Material Gr:",
+                "heat_no": "Heat No:",
+                "size": "Size(Inches):",
+                "thk": "Thk(mm):",
+                "weld_side": "Weld Side:",
+                "root": "Root:",
+                "material_comb": "Mtrl. Comb:",
+                "pipe_no": "Pipe No:",
+                "pipe_length": "Pipe length(mtrs):",
                 "welder_name": "Welder Name:",
                 "material": "Material:",
                 "weld_type": "Weld Type:",
@@ -64,6 +76,18 @@ class WeldingShopApp:
             "ar": {
                 "title": "إدارة ورشة اللحام",
                 "job_id": "رقم العمل:",
+                "weld_id": "رقم اللحام:",
+                "kp_sec": "قسم KP:",
+                "wps_no": "رقم WPS:",
+                "material_gr": "درجة المادة:",
+                "heat_no": "رقم الحرارة:",
+                "size": "الحجم (بوصة):",
+                "thk": "السماكة (مم):",
+                "weld_side": "جانب اللحام:",
+                "root": "الجذر:",
+                "material_comb": "تركيبة المادة:",
+                "pipe_no": "رقم الأنبوب:",
+                "pipe_length": "طول الأنبوب (متر):",
                 "welder_name": "اسم اللحام:",
                 "material": "المادة:",
                 "weld_type": "نوع اللحام:",
@@ -274,6 +298,18 @@ class WeldingShopApp:
         self.fields = {}
         field_config = [
             ("job_id", "Job ID:"),
+            ("weld_id", "Weld ID:"),
+            ("kp_sec", "KP Sec:"),
+            ("wps_no", "WPS No:"),
+            ("material_gr", "Material Gr:"),
+            ("heat_no", "Heat No:"),
+            ("size", "Size(Inches):"),
+            ("weld_side", "Weld Side:"),
+            ("thk", "Thk(mm):"),
+            ("root", "Root:"),
+            ("material_comb", "Mtrl. Comb:"),
+            ("pipe_no", "Pipe No:"),
+            ("pipe_length", "Pipe length(mtrs):"),
             ("welder_name", "Welder Name:"),
             ("material", "Material:"),
             ("weld_type", "Weld Type:"),
@@ -430,12 +466,8 @@ class WeldingShopApp:
         self.lang_label.config(text=t["language"])
 
         # Update field labels
-        self.fields["job_id"]["label"].config(text=t["job_id"])
-        self.fields["welder_name"]["label"].config(text=t["welder_name"])
-        self.fields["material"]["label"].config(text=t["material"])
-        self.fields["weld_type"]["label"].config(text=t["weld_type"])
-        self.fields["description"]["label"].config(text=t["description"])
-        self.fields["date"]["label"].config(text=t["date"])
+        for field_id in self.fields:
+            self.fields[field_id]["label"].config(text=t[field_id])
 
         # Update buttons
         self.add_btn.config(text=t["add_entry"])
@@ -575,7 +607,7 @@ class WeldingShopApp:
             frames = []
             stream.start_stream()
             start = time.time()
-            timeout_seconds = 9.0
+            timeout_seconds = 7.0
 
             while time.time() - start < timeout_seconds:
                 try:
@@ -602,9 +634,9 @@ class WeldingShopApp:
                 text_output = result["text"].strip()
 
                 # Remove punctuation and extra spaces
-                clean_text = re.sub(
-                    r"[^A-Za-z0-9]", "", text_output
-                )  # normalize spaces
+                clean_text = re.sub(r"(?<!\d)\.(?!\d)", "", text_output)  # remove dots not between numbers
+                clean_text = re.sub(r"[^\w.\s]", "", clean_text)  # remove other punctuations but keep decimals
+                clean_text = re.sub(r"\s+", " ", clean_text).strip() # normalize spaces
 
                 print(f"[DEBUG] Whisper transcription: '{clean_text}'")
             else:
@@ -716,11 +748,24 @@ class WeldingShopApp:
 
         # Get values
         job_id = self.fields["job_id"]["entry"].get().strip()
+        weld_id = self.fields["weld_id"]["entry"].get().strip()
+        kp_sec = self.fields["kp_sec"]["entry"].get().strip()
+        wps_no = self.fields["wps_no"]["entry"].get().strip()
+        material_gr = self.fields["material_gr"]["entry"].get().strip()
+        heat_no = self.fields["heat_no"]["entry"].get().strip()
+        size = self.fields["size"]["entry"].get().strip()
+        thk = self.fields["thk"]["entry"].get().strip()
+        weld_side = self.fields["weld_side"]["entry"].get().strip()
+        root = self.fields["root"]["entry"].get().strip()
+        material_comb = self.fields["material_comb"]["entry"].get().strip()
+        pipe_no = self.fields["pipe_no"]["entry"].get().strip()
+        pipe_length = self.fields["pipe_length"]["entry"].get().strip()
         welder_name = self.fields["welder_name"]["entry"].get().strip()
         material = self.fields["material"]["entry"].get().strip()
         weld_type = self.fields["weld_type"]["entry"].get().strip()
         description = self.fields["description"]["entry"].get("1.0", tk.END).strip()
         date = self.fields["date"]["entry"].get().strip()
+
 
         # Validation
         if not job_id or not welder_name:
@@ -728,9 +773,22 @@ class WeldingShopApp:
             return
 
         # Create record
+        # Create record
         record = {
             "id": datetime.now().timestamp(),
             "job_id": job_id,
+            "weld_id": weld_id,
+            "kp_sec": kp_sec,
+            "wps_no": wps_no,
+            "material_gr": material_gr,
+            "heat_no": heat_no,
+            "size": size,
+            "thk": thk,
+            "weld_side": weld_side,
+            "root": root,
+            "material_comb": material_comb,
+            "pipe_no": pipe_no,
+            "pipe_length": pipe_length,
             "welder_name": welder_name,
             "material": material,
             "weld_type": weld_type,
@@ -750,10 +808,23 @@ class WeldingShopApp:
         """Clear all form fields"""
         for field_id in [
             "job_id",
+            "weld_id",
+            "kp_sec",
+            "wps_no",
+            "material_gr",
+            "heat_no",
+            "size",
+            "thk",
+            "weld_side",
+            "root",
+            "material_comb",
+            "pipe_no",
+            "pipe_length",
             "welder_name",
             "material",
             "weld_type",
             "description",
+            "date",
         ]:
             field = self.fields[field_id]
             entry = field["entry"]
@@ -844,6 +915,18 @@ class WeldingShopApp:
             # Headers
             headers = [
                 "Job ID",
+                "Weld ID",
+                "KP Sec",
+                "WPS No",
+                "Material Gr",
+                "Heat No",
+                "Size",
+                "Thk",
+                "Weld Side",
+                "Root",
+                "Material Comb",
+                "Pipe No",
+                "Pipe Length",
                 "Welder Name",
                 "Material",
                 "Weld Type",
@@ -860,14 +943,26 @@ class WeldingShopApp:
             # Data
             for row, record in enumerate(self.records, 2):
                 ws.cell(row=row, column=1, value=record["job_id"]).border = border
-                ws.cell(row=row, column=2, value=record["welder_name"]).border = border
-                ws.cell(row=row, column=3, value=record["material"]).border = border
-                ws.cell(row=row, column=4, value=record["weld_type"]).border = border
-                ws.cell(row=row, column=5, value=record["description"]).border = border
-                ws.cell(row=row, column=6, value=record["date"]).border = border
+                ws.cell(row=row, column=2, value=record["weld_id"]).border = border
+                ws.cell(row=row, column=3, value=record["kp_sec"]).border = border
+                ws.cell(row=row, column=4, value=record["wps_no"]).border = border
+                ws.cell(row=row, column=5, value=record["material_gr"]).border = border
+                ws.cell(row=row, column=6, value=record["heat_no"]).border = border
+                ws.cell(row=row, column=7, value=record["size"]).border = border
+                ws.cell(row=row, column=8, value=record["thk"]).border = border
+                ws.cell(row=row, column=9, value=record["weld_side"]).border = border
+                ws.cell(row=row, column=10, value=record["root"]).border = border
+                ws.cell(row=row, column=11, value=record["material_comb"]).border = border
+                ws.cell(row=row, column=12, value=record["pipe_no"]).border = border
+                ws.cell(row=row, column=13, value=record["pipe_length"]).border = border
+                ws.cell(row=row, column=14, value=record["welder_name"]).border = border
+                ws.cell(row=row, column=15, value=record["material"]).border = border
+                ws.cell(row=row, column=16, value=record["weld_type"]).border = border
+                ws.cell(row=row, column=17, value=record["description"]).border = border
+                ws.cell(row=row, column=18, value=record["date"]).border = border
 
             # Adjust column widths
-            for col in range(1, 7):
+            for col in range(1, 19):
                 ws.column_dimensions[chr(64 + col)].width = 20
 
             wb.save(filename)
