@@ -475,7 +475,7 @@ class WeldingShopApp:
             frames = []
             stream.start_stream()
             start = time.time()
-            timeout_seconds = 7.0
+            timeout_seconds = 5.0
             while time.time() - start < timeout_seconds:
                 try:
                     data = stream.read(4000, exception_on_overflow=False)
@@ -769,7 +769,6 @@ class WeldingShopApp:
                 self.root.after(2000, lambda: self.status_label.configure(text=""))
         except Exception as e:
             print(f"[DEBUG] Fallback GUI confirm error: {e}")
-
 
     def _insert_field_value(self, field_id, value):
         """Directly insert text into a field without popup confirmation."""
