@@ -553,98 +553,223 @@ class WeldingShopApp:
         else:
             print("[DEBUG] No speech detected or recognition returned empty text")
 
-    def _voice_confirm(self, field_id, recognized_text):
-        """Voice-based confirmation after transcription."""
+    def _voice_confirm(self, field_id, recognized_text, max_retries=2):
+        """
+        Voice-based confirmation after transcription with robust handling:
+        - waits briefly after TTS so audio device frees
+        - warms up and discards first frames (often silent)
+        - retries listening a few times on empty/unrecognized responses
+        - falls back to a messagebox if voice confirmation repeatedly fails
+        """
         print(f"[DEBUG] Voice confirm started for {field_id} with text: {recognized_text}")
 
-        # Speak confirmation question (synchronously)
+        # speak the confirmation synchronously so TTS output finishes before we record
         confirm_text = f"You said {recognized_text}. Do you confirm?"
         try:
             self.speak_sync(confirm_text)
         except Exception as e:
             print(f"[DEBUG] speak_sync failed: {e}")
 
-        # Record confirmation (yes/no)
-        print("[DEBUG] Listening for yes/no confirmation...")
-        confirm_audio = None
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                confirm_audio = temp_file.name
-            audio = pyaudio.PyAudio()
-            stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
-            frames = []
-            for _ in range(0, int(16000 / 4000 * 2)):  # 2 seconds
-                data = stream.read(4000, exception_on_overflow=False)
-                frames.append(data)
-            stream.stop_stream()
-            stream.close()
-            audio.terminate()
-            wf = wave.open(confirm_audio, "wb")
-            wf.setnchannels(1)
-            wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
-            wf.setframerate(16000)
-            wf.writeframes(b"".join(frames))
-            wf.close()
+        # tiny pause to ensure audio device is free after TTS (important on some systems)
+        time.sleep(0.25)
 
-            # Transcribe yes/no
-            lang_code = "ar" if self.current_lang == "ar" else "en"
-            result = self.whisper_model.transcribe(confirm_audio, language=lang_code)
-            response_text = result["text"].strip().lower()
-            print(f"[DEBUG] Voice response detected: {response_text}")
+        yes_keywords_en = {"yes", "yeah", "yup", "yep", "confirm", "correct"}
+        no_keywords_en = {"no", "nah", "nope", "incorrect", "wrong"}
+        yes_keywords_ar = {"نعم", "ايوه", "ايه", "نَعَم"}
+        no_keywords_ar = {"لا", "لأ", "لاا"}
 
-            if "yes" in response_text:
-                print("[DEBUG] User confirmed by voice (YES)")
+        attempt = 0
+        while attempt <= max_retries:
+            attempt += 1
+            confirm_audio = None
+            audio = None
+            stream = None
+            try:
+                # create temp file
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    confirm_audio = tmp.name
 
-                entry = self.fields[field_id]["entry"]
-                mic_btn = self.fields[field_id]["mic"]
+                audio = pyaudio.PyAudio()
 
-                # ✅ Insert confirmed text
-                if isinstance(entry, ctk.CTkTextbox):
-                    entry.configure(state="normal")
-                    entry.insert("end", recognized_text + " ")
-                    entry.configure(state="disabled")
+                # open stream
+                stream = audio.open(format=pyaudio.paInt16,
+                                    channels=1,
+                                    rate=16000,
+                                    input=True,
+                                    frames_per_buffer=4000)
+
+                # warm-up: read & discard a short amount to avoid initial silence
+                try:
+                    for _ in range(0, 2):
+                        stream.read(4000, exception_on_overflow=False)
+                except Exception as e:
+                    # not critical, continue
+                    print(f"[DEBUG] warmup read error: {e}")
+
+                # record for a bit (2.5s) to capture reply
+                frames = []
+                record_seconds = 2.5
+                start = time.time()
+                while time.time() - start < record_seconds:
+                    try:
+                        data = stream.read(4000, exception_on_overflow=False)
+                        frames.append(data)
+                    except Exception as e:
+                        print(f"[DEBUG] confirmation read error: {e}")
+                        # continue reading attempts until timeout
+                        continue
+
+                # save file
+                wf = wave.open(confirm_audio, "wb")
+                wf.setnchannels(1)
+                wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+                wf.setframerate(16000)
+                wf.writeframes(b"".join(frames))
+                wf.close()
+
+                # transcribe
+                lang_code = "ar" if self.current_lang == "ar" else "en"
+                if not self.whisper_model:
+                    print("[DEBUG] No Whisper model for confirmation")
+                    response_text = ""
                 else:
-                    entry.configure(state="normal")
-                    entry.delete(0, "end")
-                    entry.insert(0, recognized_text)
-                    entry.configure(state="readonly")
+                    result = self.whisper_model.transcribe(confirm_audio, language=lang_code)
+                    response_text = result.get("text", "").strip().lower()
 
-                # ✅ Disable mic button after confirming
-                mic_btn.configure(state="disabled", fg_color="gray")
+                print(f"[DEBUG] Voice response detected: '{response_text}' (attempt {attempt})")
+
+                # clean temp audio
+                try:
+                    if confirm_audio and os.path.exists(confirm_audio):
+                        os.unlink(confirm_audio)
+                        confirm_audio = None
+                except Exception:
+                    pass
+
+                # analyze response
+                if not response_text:
+                    # nothing recognized — retry (with a short spoken prompt)
+                    if attempt <= max_retries:
+                        self.speak_async("I didn't hear you. Please say yes or no.")
+                        time.sleep(0.15)
+                        continue
+                    else:
+                        print("[DEBUG] No speech after retries, falling back to GUI confirm")
+                        break
+
+                # check for yes/no in either language
+                # Arabic responses might include Arabic words; check both sets
+                tokens = set(re.split(r"\s+|[^\w\u0600-\u06FF]+", response_text))
+                if (tokens & yes_keywords_en) or (tokens & yes_keywords_ar):
+                    print("[DEBUG] User confirmed by voice (YES)")
+                    # insert (and lock) the recognized_text into field
+                    try:
+                        # use your helper that handles CTk widgets properly
+                        self._insert_field_value(field_id, recognized_text)
+                    except Exception as e:
+                        print(f"[DEBUG] _insert_field_value failed: {e}")
+                        # fallback manual locking:
+                        entry = self.fields[field_id]["entry"]
+                        mic_btn = self.fields[field_id]["mic"]
+                        try:
+                            if isinstance(entry, ctk.CTkTextbox):
+                                entry.configure(state="normal")
+                                entry.delete("1.0", "end")
+                                entry.insert("end", recognized_text + " ")
+                                entry.configure(state="disabled")
+                            else:
+                                entry.configure(state="normal")
+                                entry.delete(0, "end")
+                                entry.insert(0, recognized_text)
+                                entry.configure(state="readonly")
+                            mic_btn.configure(state="disabled", fg_color="gray")
+                        except Exception as ee:
+                            print(f"[DEBUG] manual insert/lock failed: {ee}")
+                    self.status_label.configure(text="Confirmed and locked!")
+                    self.root.after(2000, lambda: self.status_label.configure(text=""))
+                    return
+
+                if (tokens & no_keywords_en) or (tokens & no_keywords_ar):
+                    print("[DEBUG] User rejected by voice (NO)")
+                    # speak a retry prompt and clear field for re-recording
+                    self.speak_async("Okay, please say it again.")
+                    entry = self.fields[field_id]["entry"]
+                    mic_btn = self.fields[field_id]["mic"]
+                    try:
+                        if isinstance(entry, ctk.CTkTextbox):
+                            entry.configure(state="normal")
+                            entry.delete("1.0", "end")
+                        else:
+                            entry.configure(state="normal")
+                            entry.delete(0, "end")
+                        mic_btn.configure(state="normal", fg_color="#1E90FF")
+                        self.status_label.configure(text="Cleared - please re-record")
+                        self.root.after(2000, lambda: self.status_label.configure(text=""))
+                    except Exception as e:
+                        print(f"[DEBUG] failed to clear field after NO: {e}")
+                    return
+
+                # unrecognized but not empty => ask to repeat
+                if attempt <= max_retries:
+                    self.speak_async("I didn't catch that. Please say yes or no.")
+                    time.sleep(0.15)
+                    continue
+                else:
+                    print("[DEBUG] Unclear confirmation after retries, falling back")
+                    break
+
+            except Exception as e:
+                print(f"[DEBUG] Voice confirm error on attempt {attempt}: {e}")
+                # cleanup and possibly retry
+                try:
+                    if stream:
+                        stream.stop_stream()
+                        stream.close()
+                    if audio:
+                        audio.terminate()
+                except Exception:
+                    pass
+                time.sleep(0.1)
+                continue
+            finally:
+                try:
+                    if stream:
+                        stream.stop_stream()
+                        stream.close()
+                    if audio:
+                        audio.terminate()
+                except Exception:
+                    pass
+                if confirm_audio and os.path.exists(confirm_audio):
+                    try:
+                        os.unlink(confirm_audio)
+                    except Exception:
+                        pass
+
+        # fallback to GUI confirm if voice attempts didn't reach a decision
+        try:
+            t = self.translations[self.current_lang]
+            confirm_msg = t["confirm_text"].format(recognized_text)
+            if messagebox.askyesno("Confirm Input", confirm_msg):
+                self._insert_field_value(field_id, recognized_text)
                 self.status_label.configure(text="Confirmed and locked!")
-
-                print(f"[DEBUG] Inserted and locked field '{field_id}' with value: {recognized_text}")
-
-            elif "no" in response_text:
-                print("[DEBUG] User rejected by voice (NO)")
-
-                # Use speak_async helper to avoid thread/pyttsx3 issues
-                self.speak_async("Okay, please say it again.")
-
-                # ✅ Clear entry for re-recording
+                self.root.after(2000, lambda: self.status_label.configure(text=""))
+            else:
+                # user chose No via GUI fallback
                 entry = self.fields[field_id]["entry"]
                 mic_btn = self.fields[field_id]["mic"]
-
                 if isinstance(entry, ctk.CTkTextbox):
                     entry.configure(state="normal")
                     entry.delete("1.0", "end")
                 else:
                     entry.configure(state="normal")
                     entry.delete(0, "end")
-
                 mic_btn.configure(state="normal", fg_color="#1E90FF")
                 self.status_label.configure(text="Cleared - please re-record")
-
-            else:
-                print("[DEBUG] No valid confirmation detected (neither YES nor NO).")
-                self.speak_async("Sorry, I didn't catch that. Please say yes or no.")
-
+                self.root.after(2000, lambda: self.status_label.configure(text=""))
         except Exception as e:
-            print(f"[DEBUG] Voice confirm error: {e}")
+            print(f"[DEBUG] Fallback GUI confirm error: {e}")
 
-        finally:
-            if confirm_audio and os.path.exists(confirm_audio):
-                os.unlink(confirm_audio)
 
     def _insert_field_value(self, field_id, value):
         """Directly insert text into a field without popup confirmation."""
@@ -664,7 +789,6 @@ class WeldingShopApp:
 
             # Also disable mic button for this field
             mic_button = self.fields[field_id].get("mic")
-            print(self.fields, "--------mic bnutton")
             if mic_button:
                 mic_button.configure(state="disabled", fg_color="gray")
 
