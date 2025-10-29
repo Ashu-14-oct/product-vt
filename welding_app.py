@@ -15,6 +15,8 @@ from tkinter import messagebox
 import re
 import tempfile
 import customtkinter as ctk  # New import for modern UI
+import platform
+import subprocess
 
 
 def safe_json_loads(data):
@@ -66,7 +68,7 @@ class WeldingShopApp:
                 "date": "Date:",
                 "add_entry": "Add Entry",
                 "clear_form": "Clear Form",
-                "download_excel": "Download Excel",
+                "download_excel": "Download Form",
                 "language": "Language:",
                 "theme": "Theme:",
                 "records_title": "Records",
@@ -186,6 +188,51 @@ class WeldingShopApp:
         else:
             return str(sum(num_values))
 
+    # -------------------- TTS helpers --------------------
+    def speak_sync(self, text, timeout=20):
+        """
+        Speak text synchronously using platform-native method when possible.
+        """
+        try:
+            system = platform.system()
+            if system == "Windows":
+                # Use PowerShell SAPI synchronously and pass text via stdin
+                ps_script = (
+                    "Add-Type -AssemblyName System.Speech;"
+                    + "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer;"
+                    + "$s.Speak([Console]::In.ReadToEnd());"
+                )
+                subprocess.run([
+                    "powershell",
+                    "-Command",
+                    ps_script,
+                ], input=text.encode("utf-8"), timeout=timeout)
+                return
+
+            if system == "Darwin":
+                subprocess.run(["say", text], check=False, timeout=timeout)
+                return
+
+            # Fallback: pyttsx3
+            local_tts = pyttsx3.init()
+            try:
+                local_tts.setProperty("rate", 160)
+            except Exception:
+                pass
+            local_tts.say(text)
+            local_tts.runAndWait()
+            try:
+                local_tts.stop()
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[speak_sync] error: {e}")
+
+    def speak_async(self, text):
+        """Run speak_sync in a background thread."""
+        threading.Thread(target=lambda: self.speak_sync(text), daemon=True).start()
+
+    # -------------------- UI / Flow --------------------
     def create_ui(self):
         """Build modern UI with CustomTkinter."""
         # ---------- HEADER ------------------------------------------------
@@ -296,7 +343,7 @@ class WeldingShopApp:
         rec_title.pack(pady=10)
 
         # Export button
-        self.export_btn = ctk.CTkButton(rec_frame, text="Download Excel", command=self.export_excel)
+        self.export_btn = ctk.CTkButton(rec_frame, text="Download Form", command=self.export_excel)
         self.export_btn.pack(pady=5, fill="x")
 
         # Treeview in a frame
@@ -373,48 +420,14 @@ class WeldingShopApp:
             print("[DEBUG] UI updated with question")
         except Exception as e:
             print(f"[DEBUG] UI update failed: {e}")
-        # Create FRESH TTS engine each time to avoid silent bug
-        print("[DEBUG] Initializing fresh TTS engine...")
-        tts_engine = None
+        # Speak synchronously (ensures TTS finishes before recording starts)
         try:
-            tts_engine = pyttsx3.init()
-            voices = tts_engine.getProperty("voices")
-            print(f"[DEBUG] Available voices: {len(voices)}")
-            if len(voices) == 0:
-                print("[DEBUG] WARNING: No TTS voices detected - install OS voices")
-                messagebox.showwarning(
-                    "TTS Warning", "No speech voices installed. Check OS settings."
-                )
-                # Still proceed to recording
-            else:
-                # Set a default voice (index 0 usually English; adjust for Arabic if needed)
-                tts_engine.setProperty("voice", voices[0].id)
-            tts_engine.setProperty("rate", 170)
-            tts_engine.setProperty("volume", 1.0)
-            print("[DEBUG] Engine initialized with voice")
-            print("[DEBUG] Starting TTS sequence...")
-            tts_engine.say(question)
-            print("[DEBUG] After say(), calling runAndWait()")
-            tts_engine.runAndWait()
-            print("[DEBUG] runAndWait() completed")
-            tts_engine.endLoop()  # Flush queue fully
-            print("[DEBUG] endLoop() called")
-            tts_engine.stop()
-            print("[DEBUG] TTS sequence completed successfully")
+            self.speak_sync(question)
         except Exception as e:
-            print(f"[DEBUG] TTS Error in sequence: {e}")
-        # If TTS fails entirely, still proceed to recording
-        finally:
-            # Clean up engine
-            if tts_engine:
-                try:
-                    tts_engine.stop()
-                    tts_engine = None
-                except:
-                    pass
+            print(f"[DEBUG] speak_sync failed: {e}")
         # Longer pause so TTS hardware finishes fully
-        print("[DEBUG] Sleeping 0.3s after TTS")
-        time.sleep(0.3)
+        print("[DEBUG] Sleeping 0.2s after TTS")
+        time.sleep(0.2)
         # Update status to recording then start recording in background thread
         t = self.translations[self.current_lang]
         try:
@@ -530,15 +543,135 @@ class WeldingShopApp:
         if clean_text:
             # Insert and confirm on main thread
             try:
-                self.root.after(
-                    0, lambda: self._insert_and_confirm(field_id, clean_text)
-                )
+                threading.Thread(
+                    target=lambda: self._voice_confirm(field_id, clean_text), daemon=True
+                ).start()
                 print("[DEBUG] Scheduled insert and confirm")
             except Exception as e:
                 print(f"[DEBUG] Scheduling error: {e}")
             print(f"[DEBUG] Recognized for {field_id}: {clean_text}")
         else:
             print("[DEBUG] No speech detected or recognition returned empty text")
+
+    def _voice_confirm(self, field_id, recognized_text):
+        """Voice-based confirmation after transcription."""
+        print(f"[DEBUG] Voice confirm started for {field_id} with text: {recognized_text}")
+
+        # Speak confirmation question (synchronously)
+        confirm_text = f"You said {recognized_text}. Do you confirm?"
+        try:
+            self.speak_sync(confirm_text)
+        except Exception as e:
+            print(f"[DEBUG] speak_sync failed: {e}")
+
+        # Record confirmation (yes/no)
+        print("[DEBUG] Listening for yes/no confirmation...")
+        confirm_audio = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                confirm_audio = temp_file.name
+            audio = pyaudio.PyAudio()
+            stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
+            frames = []
+            for _ in range(0, int(16000 / 4000 * 2)):  # 2 seconds
+                data = stream.read(4000, exception_on_overflow=False)
+                frames.append(data)
+            stream.stop_stream()
+            stream.close()
+            audio.terminate()
+            wf = wave.open(confirm_audio, "wb")
+            wf.setnchannels(1)
+            wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
+            wf.setframerate(16000)
+            wf.writeframes(b"".join(frames))
+            wf.close()
+
+            # Transcribe yes/no
+            lang_code = "ar" if self.current_lang == "ar" else "en"
+            result = self.whisper_model.transcribe(confirm_audio, language=lang_code)
+            response_text = result["text"].strip().lower()
+            print(f"[DEBUG] Voice response detected: {response_text}")
+
+            if "yes" in response_text:
+                print("[DEBUG] User confirmed by voice (YES)")
+
+                entry = self.fields[field_id]["entry"]
+                mic_btn = self.fields[field_id]["mic"]
+
+                # ✅ Insert confirmed text
+                if isinstance(entry, ctk.CTkTextbox):
+                    entry.configure(state="normal")
+                    entry.insert("end", recognized_text + " ")
+                    entry.configure(state="disabled")
+                else:
+                    entry.configure(state="normal")
+                    entry.delete(0, "end")
+                    entry.insert(0, recognized_text)
+                    entry.configure(state="readonly")
+
+                # ✅ Disable mic button after confirming
+                mic_btn.configure(state="disabled", fg_color="gray")
+                self.status_label.configure(text="Confirmed and locked!")
+
+                print(f"[DEBUG] Inserted and locked field '{field_id}' with value: {recognized_text}")
+
+            elif "no" in response_text:
+                print("[DEBUG] User rejected by voice (NO)")
+
+                # Use speak_async helper to avoid thread/pyttsx3 issues
+                self.speak_async("Okay, please say it again.")
+
+                # ✅ Clear entry for re-recording
+                entry = self.fields[field_id]["entry"]
+                mic_btn = self.fields[field_id]["mic"]
+
+                if isinstance(entry, ctk.CTkTextbox):
+                    entry.configure(state="normal")
+                    entry.delete("1.0", "end")
+                else:
+                    entry.configure(state="normal")
+                    entry.delete(0, "end")
+
+                mic_btn.configure(state="normal", fg_color="#1E90FF")
+                self.status_label.configure(text="Cleared - please re-record")
+
+            else:
+                print("[DEBUG] No valid confirmation detected (neither YES nor NO).")
+                self.speak_async("Sorry, I didn't catch that. Please say yes or no.")
+
+        except Exception as e:
+            print(f"[DEBUG] Voice confirm error: {e}")
+
+        finally:
+            if confirm_audio and os.path.exists(confirm_audio):
+                os.unlink(confirm_audio)
+
+    def _insert_field_value(self, field_id, value):
+        """Directly insert text into a field without popup confirmation."""
+        try:
+            entry_widget = self.fields[field_id]["entry"]
+            # CTkTextbox vs CTkEntry handling
+            if isinstance(entry_widget, ctk.CTkTextbox):
+                entry_widget.configure(state="normal")
+                entry_widget.delete("1.0", "end")
+                entry_widget.insert("end", value)
+                entry_widget.configure(state="disabled")
+            else:
+                entry_widget.configure(state="normal")
+                entry_widget.delete(0, "end")
+                entry_widget.insert(0, value)
+                entry_widget.configure(state="readonly")
+
+            # Also disable mic button for this field
+            mic_button = self.fields[field_id].get("mic")
+            print(self.fields, "--------mic bnutton")
+            if mic_button:
+                mic_button.configure(state="disabled", fg_color="gray")
+
+            print(f"[DEBUG] Inserted and locked field '{field_id}' with value: {value}")
+
+        except Exception as e:
+            print(f"[DEBUG] _insert_field_value error for {field_id}: {e}")
 
     def _insert_and_confirm(self, field_id, text):
         """Insert transcribed text, ask for confirmation, and lock if confirmed."""
@@ -574,7 +707,7 @@ class WeldingShopApp:
                 entry.delete("1.0", "end")
             else:
                 entry.delete(0, "end")
-            mic_btn.configure(state="normal")
+            mic_btn.configure(state="normal", fg_color="#1E90FF")
             print(f"[DEBUG] Field '{field_id}' cleared for re-recording")
             self.status_label.configure(text="Cleared - please re-record")
             self.root.after(2000, lambda: self.status_label.configure(text=""))
@@ -652,7 +785,7 @@ class WeldingShopApp:
                 entry.delete("1.0", "end")
             else:
                 entry.delete(0, "end")
-            mic.configure(state="normal")
+            mic.configure(state="normal", fg_color="#1E90FF")
         # Reset date
         self.fields["date"]["entry"].insert(0, datetime.now().strftime("%Y-%m-%d"))
 
