@@ -6,12 +6,15 @@ import os
 from datetime import datetime
 import threading
 import pyaudio
-import vosk
+import wave  # For saving WAV file
+import whisper  # OpenAI Whisper for transcription
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import pyttsx3
 from tkinter import messagebox
 import re
+import tempfile
+
 
 def safe_json_loads(data):
     try:
@@ -19,20 +22,21 @@ def safe_json_loads(data):
     except Exception:
         return {}
 
+
 class WeldingShopApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Welding Shop Manager")
         self.root.geometry("1000x700")
         self.root.configure(bg="#f0f0f0")
-        
+
         # No shared TTS engine anymore - init fresh each time to avoid silent state bug
-        
+
         # Data storage
         self.records = []
         self.data_file = "welding_data.json"
         self.load_data()
-        
+
         # Language settings
         self.current_lang = "en"
         self.translations = {
@@ -55,7 +59,7 @@ class WeldingShopApp:
                 "error_fill": "Please fill Job ID and Welder Name",
                 "recording": "Recording... Speak now",
                 "mic_tooltip": "Click to record voice",
-                "confirm_text": "Is this correct: '{}'? (Yes to confirm and lock field, No to re-record)"
+                "confirm_text": "Is this correct: '{}'? (Yes to confirm and lock field, No to re-record)",
             },
             "ar": {
                 "title": "إدارة ورشة اللحام",
@@ -76,65 +80,123 @@ class WeldingShopApp:
                 "error_fill": "يرجى ملء رقم العمل واسم اللحام",
                 "recording": "جاري التسجيل... تحدث الآن",
                 "mic_tooltip": "انقر للتسجيل الصوتي",
-                "confirm_text": "هل هذا صحيح: '{}'؟ (نعم للتأكيد وتثبيت الحقل، لا لإعادة التسجيل)"
-            }
+                "confirm_text": "هل هذا صحيح: '{}'؟ (نعم للتأكيد وتثبيت الحقل، لا لإعادة التسجيل)",
+            },
         }
-        
+
         # Number word dictionaries for conversion
         self.number_dicts = {
             "en": {
-                'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
-                'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
-                'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
-                'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19,
-                'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
-                'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
+                "zero": 0,
+                "one": 1,
+                "two": 2,
+                "three": 3,
+                "four": 4,
+                "five": 5,
+                "six": 6,
+                "seven": 7,
+                "eight": 8,
+                "nine": 9,
+                "ten": 10,
+                "eleven": 11,
+                "twelve": 12,
+                "thirteen": 13,
+                "fourteen": 14,
+                "fifteen": 15,
+                "sixteen": 16,
+                "seventeen": 17,
+                "eighteen": 18,
+                "nineteen": 19,
+                "twenty": 20,
+                "thirty": 30,
+                "forty": 40,
+                "fifty": 50,
+                "sixty": 60,
+                "seventy": 70,
+                "eighty": 80,
+                "ninety": 90,
             },
             "ar": {
-                'صفر': 0, 'واحد': 1, 'اثنان': 2, 'ثلاثة': 3, 'أربعة': 4,
-                'خمسة': 5, 'ستة': 6, 'سبعة': 7, 'ثمانية': 8, 'تسعة': 9, 'عشرة': 10,
-                'أحد عشر': 11, 'اثنا عشر': 12, 'ثلاثة عشر': 13, 'أربعة عشر': 14, 'خمسة عشر': 15,
-                'ستة عشر': 16, 'سبعة عشر': 17, 'ثمانية عشر': 18, 'تسعة عشر': 19,
-                'عشرون': 20, 'ثلاثون': 30, 'أربعون': 40, 'خمسون': 50,
-                'ستون': 60, 'سبعون': 70, 'ثمانون': 80, 'تسعون': 90
-            }
+                "صفر": 0,
+                "واحد": 1,
+                "اثنان": 2,
+                "ثلاثة": 3,
+                "أربعة": 4,
+                "خمسة": 5,
+                "ستة": 6,
+                "سبعة": 7,
+                "ثمانية": 8,
+                "تسعة": 9,
+                "عشرة": 10,
+                "أحد عشر": 11,
+                "اثنا عشر": 12,
+                "ثلاثة عشر": 13,
+                "أربعة عشر": 14,
+                "خمسة عشر": 15,
+                "ستة عشر": 16,
+                "سبعة عشر": 17,
+                "ثمانية عشر": 18,
+                "تسعة عشر": 19,
+                "عشرون": 20,
+                "ثلاثون": 30,
+                "أربعون": 40,
+                "خمسون": 50,
+                "ستون": 60,
+                "سبعون": 70,
+                "ثمانون": 80,
+                "تسعون": 90,
+            },
         }
-        
+
+        # Whisper model (load once; use 'base' for speed, 'small' for better accuracy)
+        self.whisper_model = None
+        self.load_whisper_model()
+
         # Voice recognition
         self.is_recording = False
-        self.recognizer = None
         self.audio = None
         self.stream = None
-        self.load_vosk_model()
-        
+
         # Build UI
         self.create_ui()
         self.update_language()
-        
+
+    def load_whisper_model(self):
+        """Load Whisper model for speech recognition"""
+        try:
+            # Load Whisper model (change to 'small', 'medium', etc. for better accuracy; 'base' is fast)
+            self.whisper_model = whisper.load_model("medium")
+            print("Loaded Whisper model: base")
+        except Exception as e:
+            print(
+                f"Error loading Whisper model: {e}. Install with: pip install openai-whisper"
+            )
+            self.whisper_model = None
+
     def words_to_digits(self, text, lang):
         """Convert number words in text to digits if the entire text represents a number.
         Handles sequences (concat) vs compounds (sum)."""
         if not text:
             return None
-        
+
         # First, check if it's already digits (spoken as digits, e.g., "5 3 1")
-        cleaned = re.sub(r'\s+', '', text.strip())
-        if re.match(r'^\d+$', cleaned):
+        cleaned = re.sub(r"\s+", "", text.strip())
+        if re.match(r"^\d+$", cleaned):
             return cleaned  # Already a number string
-        
+
         # Normalize text
         if lang == "en":
             normalized = text.lower().strip()
         else:
             normalized = text.strip()  # Arabic doesn't have case
-        
+
         # Split into words
-        words = re.split(r'\s+and\s+|and\s+|,\s*|\s+', normalized)
+        words = re.split(r"\s+and\s+|and\s+|,\s*|\s+", normalized)
         words = [w.strip() for w in words if w.strip()]
-        
+
         if not words:
             return None
-        
+
         # Check if all words are number words
         num_values = []
         single_digits_only = True
@@ -145,38 +207,16 @@ class WeldingShopApp:
             num_values.append(num)
             if num > 9:  # Tens or higher
                 single_digits_only = False
-        
+
         if not num_values:
             return None
-        
+
         # Logic: If all single digits (0-9), concatenate as sequence (e.g., "five three one" → "531")
         # Else, sum for compounds (e.g., "twenty three" → 23)
         if single_digits_only:
-            return ''.join(str(num) for num in num_values)
+            return "".join(str(num) for num in num_values)
         else:
             return str(sum(num_values))
-    
-    def load_vosk_model(self):
-        """Load Vosk model for speech recognition"""
-        try:
-            model_path = "models/vosk-model-en-us-0.22"
-            if self.current_lang == "ar":
-                model_path = "models/vosk-model-ar-mgb2-0.4"  # Fixed: Added "models/" prefix
-            
-            if os.path.exists(model_path):
-                model = vosk.Model(model_path)
-                self.recognizer = vosk.KaldiRecognizer(model, 16000)
-                print(f"Loaded Vosk model: {model_path}")
-            else:
-                print(f"Warning: Vosk model not found at {model_path}")
-                if self.current_lang == "ar":
-                    print("Download Arabic model: https://alphacephei.com/vosk/models (vosk-model-ar-mgb2-0.4.zip) and unzip to models/")
-                else:
-                    print("Download English model: https://alphacephei.com/vosk/models (vosk-model-en-us-0.22.zip) and unzip to models/")
-                self.recognizer = None
-        except Exception as e:
-            print(f"Error loading Vosk model: {e}")
-            self.recognizer = None
 
     def create_ui(self):
         """Create the user interface"""
@@ -184,29 +224,25 @@ class WeldingShopApp:
         header_frame = tk.Frame(self.root, bg="#2a5298", height=80)
         header_frame.pack(fill=tk.X)
         header_frame.pack_propagate(False)
-        
+
         self.title_label = tk.Label(
             header_frame,
             text="Welding Shop Manager",
             font=("Arial", 20, "bold"),
             bg="#2a5298",
-            fg="white"
+            fg="white",
         )
         self.title_label.pack(side=tk.LEFT, padx=20, pady=20)
-        
+
         # Language selector
         lang_frame = tk.Frame(header_frame, bg="#2a5298")
         lang_frame.pack(side=tk.RIGHT, padx=20)
-        
+
         self.lang_label = tk.Label(
-            lang_frame,
-            text="Language:",
-            font=("Arial", 11),
-            bg="#2a5298",
-            fg="white"
+            lang_frame, text="Language:", font=("Arial", 11), bg="#2a5298", fg="white"
         )
         self.lang_label.pack(side=tk.LEFT, padx=5)
-        
+
         self.lang_var = tk.StringVar(value="English")
         lang_combo = ttk.Combobox(
             lang_frame,
@@ -214,15 +250,15 @@ class WeldingShopApp:
             values=["English", "العربية"],
             state="readonly",
             width=15,
-            font=("Arial", 10)
+            font=("Arial", 10),
         )
         lang_combo.pack(side=tk.LEFT)
         lang_combo.bind("<<ComboboxSelected>>", self.change_language)
-        
+
         # Main container
         main_container = tk.Frame(self.root, bg="#f0f0f0")
         main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-        
+
         # Left panel - Form
         form_frame = tk.LabelFrame(
             main_container,
@@ -230,10 +266,10 @@ class WeldingShopApp:
             font=("Arial", 12, "bold"),
             bg="white",
             padx=20,
-            pady=20
+            pady=20,
         )
         form_frame.pack(side=tk.LEFT, fill=tk.BOTH, padx=(0, 10))
-        
+
         # Form fields
         self.fields = {}
         field_config = [
@@ -242,23 +278,23 @@ class WeldingShopApp:
             ("material", "Material:"),
             ("weld_type", "Weld Type:"),
             ("description", "Description:"),
-            ("date", "Date:")
+            ("date", "Date:"),
         ]
-        
+
         for i, (field_id, label_text) in enumerate(field_config):
             field_frame = tk.Frame(form_frame, bg="white")
             field_frame.pack(fill=tk.X, pady=8)
-            
+
             label = tk.Label(
                 field_frame,
                 text=label_text,
                 font=("Arial", 10, "bold"),
                 bg="white",
                 width=15,
-                anchor="w"
+                anchor="w",
             )
             label.pack(side=tk.LEFT)
-            
+
             if field_id == "description":
                 entry = tk.Text(field_frame, height=3, width=30, font=("Arial", 10))
             elif field_id == "date":
@@ -266,9 +302,9 @@ class WeldingShopApp:
                 entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
             else:
                 entry = tk.Entry(field_frame, width=30, font=("Arial", 10))
-            
+
             entry.pack(side=tk.LEFT, padx=5)
-            
+
             # Mic button
             mic_btn = tk.Button(
                 field_frame,
@@ -278,16 +314,16 @@ class WeldingShopApp:
                 fg="white",
                 width=3,
                 cursor="hand2",
-                command=lambda f=field_id: self.record_voice(f)
+                command=lambda f=field_id: self.record_voice(f),
             )
             mic_btn.pack(side=tk.LEFT)
-            
+
             self.fields[field_id] = {"label": label, "entry": entry, "mic": mic_btn}
-        
+
         # Buttons
         button_frame = tk.Frame(form_frame, bg="white")
         button_frame.pack(pady=20)
-        
+
         self.add_btn = tk.Button(
             button_frame,
             text="Add Entry",
@@ -297,10 +333,10 @@ class WeldingShopApp:
             width=15,
             height=2,
             cursor="hand2",
-            command=self.add_entry
+            command=self.add_entry,
         )
         self.add_btn.pack(side=tk.LEFT, padx=5)
-        
+
         self.clear_btn = tk.Button(
             button_frame,
             text="Clear Form",
@@ -310,20 +346,16 @@ class WeldingShopApp:
             width=15,
             height=2,
             cursor="hand2",
-            command=self.clear_form
+            command=self.clear_form,
         )
         self.clear_btn.pack(side=tk.LEFT, padx=5)
-        
+
         # Status label
         self.status_label = tk.Label(
-            form_frame,
-            text="",
-            font=("Arial", 10),
-            bg="white",
-            fg="green"
+            form_frame, text="", font=("Arial", 10), bg="white", fg="green"
         )
         self.status_label.pack(pady=10)
-        
+
         # Right panel - Records
         records_frame = tk.LabelFrame(
             main_container,
@@ -331,10 +363,10 @@ class WeldingShopApp:
             font=("Arial", 12, "bold"),
             bg="white",
             padx=10,
-            pady=10
+            pady=10,
         )
         records_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        
+
         # Export button
         self.export_btn = tk.Button(
             records_frame,
@@ -345,42 +377,42 @@ class WeldingShopApp:
             width=20,
             height=2,
             cursor="hand2",
-            command=self.export_excel
+            command=self.export_excel,
         )
         self.export_btn.pack(pady=10)
-        
+
         # Records table
         table_frame = tk.Frame(records_frame, bg="white")
         table_frame.pack(fill=tk.BOTH, expand=True)
-        
+
         # Scrollbars
         v_scrollbar = tk.Scrollbar(table_frame, orient=tk.VERTICAL)
         h_scrollbar = tk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
-        
+
         self.tree = ttk.Treeview(
             table_frame,
             columns=("Job ID", "Welder", "Material", "Type", "Date", "Actions"),
             show="headings",
             yscrollcommand=v_scrollbar.set,
             xscrollcommand=h_scrollbar.set,
-            height=15
+            height=15,
         )
-        
+
         v_scrollbar.config(command=self.tree.yview)
         h_scrollbar.config(command=self.tree.xview)
-        
+
         # Column headings
         for col in ("Job ID", "Welder", "Material", "Type", "Date", "Actions"):
             self.tree.heading(col, text=col)
             self.tree.column(col, width=120)
-        
+
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
-        
+
         # Bind delete
         self.tree.bind("<Double-Button-1>", self.delete_record)
-        
+
         self.refresh_table()
 
     def change_language(self, event=None):
@@ -388,15 +420,15 @@ class WeldingShopApp:
         lang = self.lang_var.get()
         self.current_lang = "ar" if lang == "العربية" else "en"
         self.update_language()
-        self.load_vosk_model()
+        # Reload Whisper model if needed (Whisper auto-detects language)
 
     def update_language(self):
         """Update UI text based on selected language"""
         t = self.translations[self.current_lang]
-        
+
         self.title_label.config(text=t["title"])
         self.lang_label.config(text=t["language"])
-        
+
         # Update field labels
         self.fields["job_id"]["label"].config(text=t["job_id"])
         self.fields["welder_name"]["label"].config(text=t["welder_name"])
@@ -404,7 +436,7 @@ class WeldingShopApp:
         self.fields["weld_type"]["label"].config(text=t["weld_type"])
         self.fields["description"]["label"].config(text=t["description"])
         self.fields["date"]["label"].config(text=t["date"])
-        
+
         # Update buttons
         self.add_btn.config(text=t["add_entry"])
         self.clear_btn.config(text=t["clear_form"])
@@ -422,9 +454,12 @@ class WeldingShopApp:
             print("[DEBUG] Recording already in progress, exiting")
             return
 
-        if not self.recognizer:
-            print("[DEBUG] No recognizer loaded")
-            messagebox.showwarning("Warning", "Voice recognition model not loaded")
+        if not self.whisper_model:
+            print("[DEBUG] No Whisper model loaded")
+            messagebox.showwarning(
+                "Warning",
+                "Whisper model not loaded. Install with: pip install openai-whisper",
+            )
             return
 
         # Build language-specific question text
@@ -447,17 +482,19 @@ class WeldingShopApp:
         tts_engine = None
         try:
             tts_engine = pyttsx3.init()
-            voices = tts_engine.getProperty('voices')
+            voices = tts_engine.getProperty("voices")
             print(f"[DEBUG] Available voices: {len(voices)}")
             if len(voices) == 0:
                 print("[DEBUG] WARNING: No TTS voices detected - install OS voices")
-                messagebox.showwarning("TTS Warning", "No speech voices installed. Check OS settings.")
+                messagebox.showwarning(
+                    "TTS Warning", "No speech voices installed. Check OS settings."
+                )
                 # Still proceed to recording
             else:
                 # Set a default voice (index 0 usually English; adjust for Arabic if needed)
-                tts_engine.setProperty('voice', voices[0].id)
-            tts_engine.setProperty('rate', 170)
-            tts_engine.setProperty('volume', 1.0)
+                tts_engine.setProperty("voice", voices[0].id)
+            tts_engine.setProperty("rate", 170)
+            tts_engine.setProperty("volume", 1.0)
             print("[DEBUG] Engine initialized with voice")
 
             print("[DEBUG] Starting TTS sequence...")
@@ -496,19 +533,21 @@ class WeldingShopApp:
 
         # Start recording in background thread
         print("[DEBUG] Starting recording thread")
-        threading.Thread(target=self._record_audio, args=(field_id,), daemon=True).start()
+        threading.Thread(
+            target=self._record_audio, args=(field_id,), daemon=True
+        ).start()
 
     def _record_audio(self, field_id):
-        """Record and transcribe audio for ~3 seconds safely, then insert text."""
+        """Record audio to WAV file for ~3 seconds, then transcribe with Whisper."""
         print(f"[DEBUG] _record_audio started for field: {field_id}")
         print(f"[DEBUG] Setting is_recording to True")
 
-        # Prevent re-entry
         if self.is_recording:
             print("[DEBUG] Re-entry detected, exiting")
             return
 
         self.is_recording = True
+        audio_file = None
         text_output = ""
 
         audio = None
@@ -517,107 +556,111 @@ class WeldingShopApp:
             print("[DEBUG] Initializing PyAudio")
             audio = pyaudio.PyAudio()
 
-            # Open stream; handle device errors gracefully
+            # Create temp WAV file
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                audio_file = temp_file.name
+
+            # Open stream
             print("[DEBUG] Opening audio stream")
             stream = audio.open(
                 format=pyaudio.paInt16,
                 channels=1,
                 rate=16000,
                 input=True,
-                frames_per_buffer=4000
+                frames_per_buffer=4000,
             )
 
-            # Start the stream and read for a fixed duration
+            # Record to file for 3s
             print("[DEBUG] Starting stream and recording loop (3s)")
+            frames = []
             stream.start_stream()
             start = time.time()
-            timeout_seconds = 3.0  # Fixed recording length; change if needed
+            timeout_seconds = 9.0
 
             while time.time() - start < timeout_seconds:
                 try:
                     data = stream.read(4000, exception_on_overflow=False)
+                    frames.append(data)
                 except Exception as e:
-                    # Read error (overflow etc.) — skip and continue
                     print(f"[DEBUG] Audio read error: {e}")
                     continue
 
-                if not data:
-                    continue
+            # Save to WAV
+            wf = wave.open(audio_file, "wb")
+            wf.setnchannels(1)
+            wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+            wf.setframerate(16000)
+            wf.writeframes(b"".join(frames))
+            wf.close()
 
-                # Feed data to recognizer
-                try:
-                    if self.recognizer.AcceptWaveform(data):
-                        res = safe_json_loads(self.recognizer.Result())
-                        txt = res.get("text", "").strip()
-                        if txt:
-                            text_output += " " + txt
-                            print(f"[DEBUG] Partial recognition: '{txt}'")
-                    else:
-                        # Partial result ignored for now
-                        pass
-                except Exception as e:
-                    # If Vosk internal assertion happens, ignore and continue safely
-                    print(f"[DEBUG] Vosk consume error: {e}")
+            # Transcribe with Whisper
+            print("[DEBUG] Transcribing with Whisper")
+            if self.whisper_model:
+                # Auto-detect language or specify
+                lang_code = "ar" if self.current_lang == "ar" else "en"
+                result = self.whisper_model.transcribe(audio_file, language=lang_code)
+                text_output = result["text"].strip()
 
-            # Safe final result read
-            print("[DEBUG] Getting final recognition result")
-            try:
-                final = safe_json_loads(self.recognizer.FinalResult())
-                txt = final.get("text", "").strip()
-                if txt:
-                    text_output += " " + txt
-                    print(f"[DEBUG] Final recognition: '{txt}'")
-            except Exception as e:
-                print(f"[DEBUG] Vosk final error: {e}")
+                # Remove punctuation and extra spaces
+                clean_text = re.sub(
+                    r"[^A-Za-z0-9]", "", text_output
+                )  # normalize spaces
+
+                print(f"[DEBUG] Whisper transcription: '{clean_text}'")
+            else:
+                print("[DEBUG] No Whisper model available")
 
         except Exception as e:
-            print(f"[DEBUG] Recording Error: {e}")
+            print(f"[DEBUG] Recording/Transcription Error: {e}")
         finally:
-            # Cleanup audio resources safely
+            # Cleanup
             print("[DEBUG] Cleaning up audio resources")
             try:
-                if stream is not None:
+                if stream:
                     stream.stop_stream()
                     stream.close()
-            except Exception as e:
-                print(f"[DEBUG] Stream cleanup error: {e}")
-            try:
-                if audio is not None:
+                if audio:
                     audio.terminate()
             except Exception as e:
-                print(f"[DEBUG] Audio cleanup error: {e}")
+                print(f"[DEBUG] Cleanup error: {e}")
 
-            # Reset status UI and recording flag on main thread
+            # Delete temp file
+            if audio_file and os.path.exists(audio_file):
+                os.unlink(audio_file)
+
+            # Reset status and flag
             try:
                 t = self.translations[self.current_lang]
-                self.root.after(0, lambda: self.status_label.config(text="", fg="green"))
+                self.root.after(
+                    0, lambda: self.status_label.config(text="", fg="green")
+                )
                 print("[DEBUG] Scheduled status reset")
             except Exception as e:
-                print(f"[DEBUG] Status reset scheduling error: {e}")
+                print(f"[DEBUG] Status reset error: {e}")
 
-            print("[DEBUG] Setting is_recording to False")
             self.is_recording = False
 
-        text_output = (text_output or "").strip()
-        print(f"[DEBUG] Raw text_output: '{text_output}'")
-        
+        print(f"[DEBUG] Raw text_output: '{clean_text}'")
+
         # Convert number words to digits if applicable
-        converted = self.words_to_digits(text_output, self.current_lang)
+        converted = self.words_to_digits(clean_text, self.current_lang)
         if converted:
-            text_output = converted
-            print(f"[DEBUG] Converted number: '{text_output}'")
+            clean_text = converted
+            print(f"[DEBUG] Converted number: '{clean_text}'")
         else:
             print(f"[DEBUG] No number conversion applied")
-        
-        if text_output:
+
+        if clean_text:
             # Insert and confirm on main thread
             try:
-                self.root.after(0, lambda: self._insert_and_confirm(field_id, text_output))
+                self.root.after(
+                    0, lambda: self._insert_and_confirm(field_id, clean_text)
+                )
                 print("[DEBUG] Scheduled insert and confirm")
             except Exception as e:
                 print(f"[DEBUG] Scheduling error: {e}")
-                self._insert_and_confirm(field_id, text_output)
-            print(f"[DEBUG] Recognized for {field_id}: {text_output}")
+                self._insert_and_confirm(field_id, clean_text)
+            print(f"[DEBUG] Recognized for {field_id}: {clean_text}")
         else:
             print("[DEBUG] No speech detected or recognition returned empty text")
 
@@ -626,7 +669,7 @@ class WeldingShopApp:
         print(f"[DEBUG] _insert_and_confirm called for {field_id} with text: '{text}'")
         entry = self.fields[field_id]["entry"]
         mic_btn = self.fields[field_id]["mic"]
-        
+
         # Insert the text
         if isinstance(entry, tk.Text):
             entry.insert(tk.END, text + " ")
@@ -636,19 +679,19 @@ class WeldingShopApp:
             entry.delete(0, tk.END)
             entry.insert(0, current + " " + text if current else text)
             current_text = entry.get().strip()
-        
+
         print(f"[DEBUG] Inserted text: '{current_text}'")
-        
+
         # Ask for confirmation
         t = self.translations[self.current_lang]
         confirm_msg = t["confirm_text"].format(current_text)
         if messagebox.askyesno("Confirm Input", confirm_msg):
             # Confirmed: Make field uneditable and disable mic
             if isinstance(entry, tk.Text):
-                entry.config(state='disabled')
+                entry.config(state="disabled")
             else:
-                entry.config(state='readonly')
-            mic_btn.config(state='disabled', bg='gray')
+                entry.config(state="readonly")
+            mic_btn.config(state="disabled", bg="gray")
             print(f"[DEBUG] Field '{field_id}' locked after confirmation")
             self.status_label.config(text="Confirmed and locked!", fg="green")
             self.root.after(2000, lambda: self.status_label.config(text=""))
@@ -658,7 +701,7 @@ class WeldingShopApp:
                 entry.delete("1.0", tk.END)
             else:
                 entry.delete(0, tk.END)
-            mic_btn.config(state='normal', bg="#2a5298")
+            mic_btn.config(state="normal", bg="#2a5298")
             print(f"[DEBUG] Field '{field_id}' cleared for re-recording")
             self.status_label.config(text="Cleared - please re-record", fg="orange")
             self.root.after(2000, lambda: self.status_label.config(text=""))
@@ -670,7 +713,7 @@ class WeldingShopApp:
     def add_entry(self):
         """Add new welding entry"""
         t = self.translations[self.current_lang]
-        
+
         # Get values
         job_id = self.fields["job_id"]["entry"].get().strip()
         welder_name = self.fields["welder_name"]["entry"].get().strip()
@@ -678,12 +721,12 @@ class WeldingShopApp:
         weld_type = self.fields["weld_type"]["entry"].get().strip()
         description = self.fields["description"]["entry"].get("1.0", tk.END).strip()
         date = self.fields["date"]["entry"].get().strip()
-        
+
         # Validation
         if not job_id or not welder_name:
             messagebox.showerror("Error", t["error_fill"])
             return
-        
+
         # Create record
         record = {
             "id": datetime.now().timestamp(),
@@ -692,64 +735,74 @@ class WeldingShopApp:
             "material": material,
             "weld_type": weld_type,
             "description": description,
-            "date": date
+            "date": date,
         }
-        
+
         self.records.insert(0, record)
         self.save_data()
         self.refresh_table()
         self.clear_form()
-        
+
         self.status_label.config(text=t["success_add"], fg="green")
         self.root.after(3000, lambda: self.status_label.config(text=""))
 
     def clear_form(self):
         """Clear all form fields"""
-        for field_id in ["job_id", "welder_name", "material", "weld_type", "description"]:
+        for field_id in [
+            "job_id",
+            "welder_name",
+            "material",
+            "weld_type",
+            "description",
+        ]:
             field = self.fields[field_id]
             entry = field["entry"]
             mic = field["mic"]
             if isinstance(entry, tk.Text):
-                entry.config(state='normal')
+                entry.config(state="normal")
                 entry.delete("1.0", tk.END)
             else:
-                entry.config(state='normal')
+                entry.config(state="normal")
                 entry.delete(0, tk.END)
-            mic.config(state='normal', bg="#2a5298")
-        
+            mic.config(state="normal", bg="#2a5298")
+
         # Reset date
-        self.fields["date"]["entry"].config(state='normal')
+        self.fields["date"]["entry"].config(state="normal")
         self.fields["date"]["entry"].delete(0, tk.END)
         self.fields["date"]["entry"].insert(0, datetime.now().strftime("%Y-%m-%d"))
-        self.fields["date"]["mic"].config(state='normal', bg="#2a5298")
+        self.fields["date"]["mic"].config(state="normal", bg="#2a5298")
 
     def refresh_table(self):
         """Refresh the records table"""
         # Clear existing
         for item in self.tree.get_children():
             self.tree.delete(item)
-        
+
         # Add records
         for record in self.records:
-            self.tree.insert("", tk.END, values=(
-                record["job_id"],
-                record["welder_name"],
-                record["material"],
-                record["weld_type"],
-                record["date"],
-                "Double-click to delete"
-            ))
+            self.tree.insert(
+                "",
+                tk.END,
+                values=(
+                    record["job_id"],
+                    record["welder_name"],
+                    record["material"],
+                    record["weld_type"],
+                    record["date"],
+                    "Double-click to delete",
+                ),
+            )
 
     def delete_record(self, event):
         """Delete selected record"""
         selection = self.tree.selection()
         if not selection:
             return
-        
+
         if messagebox.askyesno("Confirm", "Delete this record?"):
             item = self.tree.item(selection[0])
             job_id = item["values"][0]
-            
+
             self.records = [r for r in self.records if r["job_id"] != job_id]
             self.save_data()
             self.refresh_table()
@@ -759,42 +812,51 @@ class WeldingShopApp:
         if not self.records:
             messagebox.showwarning("Warning", "No records to export")
             return
-        
+
         t = self.translations[self.current_lang]
-        
+
         filename = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
             filetypes=[("Excel files", "*.xlsx")],
-            initialfile=f"welding_records_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            initialfile=f"welding_records_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
         )
-        
+
         if not filename:
             return
-        
+
         try:
             wb = Workbook()
             ws = wb.active
             ws.title = "Welding Records"
-            
+
             # Header style
-            header_fill = PatternFill(start_color="2a5298", end_color="2a5298", fill_type="solid")
+            header_fill = PatternFill(
+                start_color="2a5298", end_color="2a5298", fill_type="solid"
+            )
             header_font = Font(bold=True, color="FFFFFF", size=12)
             border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
+                left=Side(style="thin"),
+                right=Side(style="thin"),
+                top=Side(style="thin"),
+                bottom=Side(style="thin"),
             )
-            
+
             # Headers
-            headers = ["Job ID", "Welder Name", "Material", "Weld Type", "Description", "Date"]
+            headers = [
+                "Job ID",
+                "Welder Name",
+                "Material",
+                "Weld Type",
+                "Description",
+                "Date",
+            ]
             for col, header in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col, value=header)
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.border = border
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-            
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
             # Data
             for row, record in enumerate(self.records, 2):
                 ws.cell(row=row, column=1, value=record["job_id"]).border = border
@@ -803,16 +865,16 @@ class WeldingShopApp:
                 ws.cell(row=row, column=4, value=record["weld_type"]).border = border
                 ws.cell(row=row, column=5, value=record["description"]).border = border
                 ws.cell(row=row, column=6, value=record["date"]).border = border
-            
+
             # Adjust column widths
             for col in range(1, 7):
                 ws.column_dimensions[chr(64 + col)].width = 20
-            
+
             wb.save(filename)
-            
+
             self.status_label.config(text=t["success_export"], fg="green")
             self.root.after(3000, lambda: self.status_label.config(text=""))
-            
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export: {str(e)}")
 
@@ -820,7 +882,7 @@ class WeldingShopApp:
         """Load records from JSON file"""
         if os.path.exists(self.data_file):
             try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
+                with open(self.data_file, "r", encoding="utf-8") as f:
                     self.records = json.load(f)
             except:
                 self.records = []
@@ -828,10 +890,11 @@ class WeldingShopApp:
     def save_data(self):
         """Save records to JSON file"""
         try:
-            with open(self.data_file, 'w', encoding='utf-8') as f:
+            with open(self.data_file, "w", encoding="utf-8") as f:
                 json.dump(self.records, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"Error saving data: {e}")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
