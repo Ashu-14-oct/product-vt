@@ -994,17 +994,18 @@ class WeldingShopApp:
             self.refresh_table()
 
     def export_excel(self):
-        """Exports only filled fields to the welding Excel template, preserving logo & formatting."""
+        """Export data into the given Excel template preserving all formatting and logo."""
+        import shutil, tempfile, os
         from openpyxl import load_workbook
+        from openpyxl.drawing.image import Image
         from openpyxl.styles import Alignment
-        import shutil
-        from tkinter import messagebox, filedialog
-        import os
+        from tkinter import filedialog, messagebox
 
         if not self.records:
             messagebox.showwarning("Warning", "No records to export")
             return
 
+        t = self.translations[self.current_lang]
         filename = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
             filetypes=[("Excel files", "*.xlsx")],
@@ -1019,73 +1020,114 @@ class WeldingShopApp:
                 messagebox.showerror("Error", f"Template not found:\n{template_path}")
                 return
 
-            # Copy the template to avoid overwriting original
             shutil.copyfile(template_path, filename)
 
-            # Load workbook without losing styles
+            # ✅ Try to extract and reinsert the logo safely
+            temp_logo_path = None
+            try:
+                temp_wb = load_workbook(template_path)
+                ws_t = temp_wb.active
+                if ws_t._images:
+                    logo_obj = ws_t._images[0]
+                    temp_logo_path = tempfile.mktemp(suffix=".png")
+                    logo_obj.image.save(temp_logo_path)
+                temp_wb.close()
+            except Exception as e:
+                print(f"⚠️ Logo extraction failed: {e}")
+
             wb = load_workbook(filename)
             ws = wb.active
 
-            # Helper: write safely (supports merged cells)
-            def write_safe(cell_ref, value):
-                if value is None or str(value).strip() == "":
-                    return  # ⛔ Skip empty fields
+            # Helper to safely write while preserving labels
+            def write_with_label(cell_ref, value):
+                if not value:
+                    return
                 cell = ws[cell_ref]
                 for merged in ws.merged_cells.ranges:
                     if cell.coordinate in merged:
-                        top_left = ws.cell(merged.min_row, merged.min_col)
-                        top_left.value = value
-                        top_left.alignment = Alignment(horizontal="center", vertical="center")
-                        return
-                cell.value = value
-                cell.alignment = Alignment(horizontal="center", vertical="center")
+                        cell = ws.cell(merged.min_row, merged.min_col)
+                        break
 
-            # Define row pattern: data rows start at 11 and increment by 2
+                existing = str(cell.value).strip() if cell.value else ""
+                if ":" in existing:
+                    prefix = existing.split(":")[0].strip() + ":"
+                    cell.value = f"{prefix} {value}"
+                else:
+                    cell.value = value
+                cell.alignment = Alignment(vertical="center")
+
+            # === HEADER MAPPING based on your layout ===
+            header_map = {
+                "contract_number": "E5",
+                "contract_title": "K5",
+                "report_number": "Q5",
+                "activity_date": "U5",
+                "po_wo_number": "E6",
+                "client_wps_number": "K6",
+                "project_title_wellID": "Q6",
+                "drawing_no": "E7",
+                "line_no": "Q7",
+                "site_name": "U7",
+                "job_desc": "E8",
+                "location": "U8",
+            }
+
+            header_source = self.records[0]
+            for key, cell_ref in header_map.items():
+                if header_source.get(key):
+                    write_with_label(cell_ref, header_source[key])
+
+            # === DATA TABLE SECTION ===
             start_row = 11
             row_gap = 2
 
-            # Go through each record
+            def write_safe(cell_ref, value):
+                if not value or str(value).strip() == "":
+                    return
+                cell = ws[cell_ref]
+                for merged in ws.merged_cells.ranges:
+                    if cell.coordinate in merged:
+                        cell = ws.cell(merged.min_row, merged.min_col)
+                        break
+                cell.value = value
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
             for idx, record in enumerate(self.records, start=1):
                 row = start_row + (idx - 1) * row_gap
+                write_safe(f"B{row}", idx)
+                write_safe(f"C{row}", record.get("kp_sec"))
+                write_safe(f"D{row}", record.get("weld_id"))
+                write_safe(f"E{row}", record.get("wps_no"))
+                combo = f"{record.get('material_gr', '')} / {record.get('heat_no', '')}".strip(" / ")
+                write_safe(f"F{row}", combo)
+                write_safe(f"H{row}", record.get("size"))
+                write_safe(f"I{row}", record.get("thk"))
+                write_safe(f"J{row}", record.get("weld_side"))
+                write_safe(f"K{row}", record.get("root"))
+                write_safe(f"U{row}", record.get("material_comb"))
+                write_safe(f"V{row}", record.get("pipe_no"))
+                write_safe(f"W{row}", record.get("pipe_length"))
+                remarks = f"Welder: {record.get('welder_name','')} | Date: {record.get('date','')}"
+                write_safe(f"X{row}", remarks)
 
-                # Each field is only written if present in record
-                write_safe(f"B{row}", idx)  # Always fill Sr.No
-                if record.get("kp_sec"): write_safe(f"C{row}", record["kp_sec"])
-                if record.get("weld_id"): write_safe(f"D{row}", record["weld_id"])
-                if record.get("wps_no"): write_safe(f"E{row}", record["wps_no"])
+            # ✅ Reinsert logo if extracted
+            if temp_logo_path and os.path.exists(temp_logo_path):
+                try:
+                    img = Image(temp_logo_path)
+                    ws.add_image(img, "B1")
+                    print("✅ Logo restored successfully.")
+                except Exception as e:
+                    print(f"⚠️ Failed to reinsert logo: {e}")
 
-                # Combine Material Gr. / Heat No. only if at least one present
-                if record.get("material_gr") or record.get("heat_no"):
-                    combined = f"{record.get('material_gr', '')} / {record.get('heat_no', '')}".strip(" / ")
-                    write_safe(f"F{row}", combined)
-
-                if record.get("size"): write_safe(f"H{row}", record["size"])
-                if record.get("thk"): write_safe(f"I{row}", record["thk"])
-                if record.get("weld_side"): write_safe(f"J{row}", record["weld_side"])
-                if record.get("root"): write_safe(f"M{row}", record["root"])
-                if record.get("material_comb"): write_safe(f"P{row}", record["material_comb"])
-                if record.get("pipe_no"): write_safe(f"Q{row}", record["pipe_no"])
-                if record.get("pipe_length"): write_safe(f"R{row}", record["pipe_length"])
-
-                # Welder/Date line (only if either is present)
-                if record.get("welder_name") or record.get("date"):
-                    remarks = f"Welder: {record.get('welder_name','')} | Date: {record.get('date','')}".strip(" | ")
-                    write_safe(f"S{row}", remarks)
-
-                # Fill inspection columns only if explicitly provided in record
-                if record.get("visual"): write_safe(f"N{row}", record["visual"])
-                if record.get("dimensional"): write_safe(f"O{row}", record["dimensional"])
-
-            # Save workbook
             wb.save(filename)
             wb.close()
 
-            self.status_label.configure(text="✅ Excel exported successfully!", text_color="green")
-            self.root.after(3000, lambda: self.status_label.configure(text=""))
+            # self.status_label.config(text=t["success_export"], fg="green")
+            # self.root.after(3000, lambda: self.status_label.config(text=""))
             messagebox.showinfo("Success", f"Excel exported successfully:\n{filename}")
 
         except Exception as e:
-            messagebox.showerror("Error", f"Export failed:\n{e}")
+            messagebox.showerror("Error", f"Export failed:\n{str(e)}")
 
     def load_data(self):
         """Load records from JSON file"""
