@@ -17,6 +17,7 @@ import tempfile
 import customtkinter as ctk  # New import for modern UI
 import platform
 import subprocess
+from PIL import Image
 
 
 def safe_json_loads(data):
@@ -34,7 +35,7 @@ ctk.set_default_color_theme("blue")  # Themes: "blue", "green", "dark-blue"
 class WeldingShopApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Welding Shop Manager")
+        self.root.title("Al Tasnim Enterprises LLC")
         self.root.geometry("1000x700")
 
         # Data storage
@@ -46,7 +47,7 @@ class WeldingShopApp:
         self.current_lang = "en"
         self.translations = {
             "en": {
-                "title": "Welding Shop Manager",
+                "title": "AL TASNIM ENTERPRISES LLC",
                 "add_form_title": "Add Welding Entry",
                 "job_id": "Job ID:",
                 "contract_number": "Contract No.",
@@ -79,13 +80,13 @@ class WeldingShopApp:
                 "date": "Date:",
                 "add_entry": "Add Entry",
                 "clear_form": "Clear Form",
-                "download_excel": "Download Excel",
+                "download_excel": "Submit Form",
                 "language": "Language:",
                 "theme": "Theme:",
                 "records_title": "Records",
                 "delete": "Delete",
                 "success_add": "Entry added successfully!",
-                "success_export": "Excel file exported successfully!",
+                "success_export": "Form exported successfully!",
                 "error_fill": "Please fill Job ID and Welder Name",
                 "recording": "Recording... Speak now",
                 "mic_tooltip": "Click to record voice",
@@ -125,13 +126,13 @@ class WeldingShopApp:
                 "date": "التاريخ:",
                 "add_entry": "إضافة سجل",
                 "clear_form": "مسح النموذج",
-                "download_excel": "تحميل Excel",
+                "download_excel": "إرسال النموذج",
                 "language": "اللغة:",
                 "theme": "الثيم:",
                 "records_title": "السجلات",
                 "delete": "حذف",
                 "success_add": "تمت إضافة السجل بنجاح!",
-                "success_export": "تم تصدير ملف Excel بنجاح!",
+                "success_export": "تم تصدير النموذج بنجاح!",
                 "error_fill": "يرجى ملء رقم العمل واسم اللحام",
                 "recording": "جاري التسجيل... تحدث الآن",
                 "mic_tooltip": "انقر للتسجيل الصوتي",
@@ -258,12 +259,32 @@ class WeldingShopApp:
     def create_ui(self):
         """Build modern UI with CustomTkinter."""
         # ---------- HEADER ------------------------------------------------
-        header = ctk.CTkFrame(self.root, height=70, corner_radius=0)
+        # header with orange background
+        header = ctk.CTkFrame(self.root, height=70, corner_radius=0, fg_color="#FF8C00")  # or "#FFA500"
         header.pack(fill="x")
         header.pack_propagate(False)
 
+        try:
+            logo_path = os.path.join(os.getcwd(), "logo.png")   # adjust if logo is elsewhere
+            print(f"[DEBUG] ------------------------------------------------ Loading logo from: {logo_path}")
+            if os.path.exists(logo_path):
+                pil_img = Image.open("logo.png")
+                pil_img = pil_img.resize((140, 40), Image.LANCZOS)   # (width, height) forced — stretches
+                self.logo_img = ctk.CTkImage(pil_img, size=(140, 40))
+                self.logo_label = ctk.CTkLabel(header, image=self.logo_img, text="")
+                self.logo_label.pack(side="left", padx=(6, 4), pady=12)
+
+            else:
+                print(f"[WARN] logo.png not found at {logo_path}")
+        except Exception as e:
+            print(f"[WARN] Failed to load logo: {e}")
+        # ===============================================================
+
         self.title_label = ctk.CTkLabel(
-            header, text="Welding Shop Manager", font=ctk.CTkFont(size=20, weight="bold")
+            header,
+            text="Al Tasnim Enterprises LLC",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
         )
         self.title_label.pack(side="left", padx=20, pady=15)
 
@@ -278,15 +299,29 @@ class WeldingShopApp:
         self.theme_switch.select() if ctk.get_appearance_mode() == "dark" else None
 
         # Language selector
-        lang_fr = ctk.CTkFrame(header)
-        lang_fr.pack(side="right", padx=(0, 20), pady=15)
-        ctk.CTkLabel(lang_fr, text="Language:").pack(side="left", padx=(0, 5))
+        lang_fr = ctk.CTkFrame(header, fg_color="transparent", corner_radius=0)
+        lang_fr.pack(side="right", padx=(8, 10), pady=12)   # smaller right padding so it sits closer to title/logo
+
+        # white label so it shows up on the orange header
+        lang_label = ctk.CTkLabel(
+            lang_fr,
+            text="Language:",
+            text_color="white",
+            font=ctk.CTkFont(size=12, weight="bold")   # <-- bold and slightly larger
+        )
+        lang_label.pack(side="left", padx=(0, 6))
+
         self.lang_var = ctk.StringVar(value="English")
         lang_cb = ctk.CTkComboBox(
-            lang_fr, values=["English", "العربية"], variable=self.lang_var, state="readonly", width=120
+            lang_fr,
+            values=["English", "العربية"],
+            variable=self.lang_var,
+            state="readonly",
+            width=120,
+            command=lambda v: self.change_language(v)   # CTkComboBox passes the selected value
         )
+
         lang_cb.pack(side="left")
-        lang_cb.bind("<<ComboboxSelected>>", self.change_language)
 
         # ---------- MAIN SCROLLABLE CONTENT -------------------------------
         scrollable = ctk.CTkScrollableFrame(self.root, corner_radius=10)
@@ -365,7 +400,7 @@ class WeldingShopApp:
         rec_title.pack(pady=10)
 
         # Export button
-        self.export_btn = ctk.CTkButton(rec_frame, text="Download Form", command=self.export_excel)
+        self.export_btn = ctk.CTkButton(rec_frame, text="Submit Form", command=self.export_excel)
         self.export_btn.pack(pady=5, fill="x")
 
         # Treeview in a frame
@@ -395,9 +430,16 @@ class WeldingShopApp:
         mode = "dark" if self.theme_switch.get() == "on" else "light"
         ctk.set_appearance_mode(mode)
 
-    def change_language(self, event=None):
-        lang = self.lang_var.get()
-        self.current_lang = "ar" if lang == "العربية" else "en"
+    def change_language(self, value_or_event=None):
+        # CTkComboBox passes a string (the selected value).
+        # If called via an event (unlikely here), fall back to lang_var.
+        if isinstance(value_or_event, str):
+            sel = value_or_event
+        else:
+            sel = self.lang_var.get()
+
+        print(f"[DEBUG] change_language called, selected={sel}")
+        self.current_lang = "ar" if sel == "العربية" else "en"
         self.update_language()
 
     def update_language(self):
@@ -525,7 +567,7 @@ class WeldingShopApp:
                 text_output = ""
             # Clean the text output
             clean_text = re.sub(r"(?<!\d)\.(?!\d)", "", text_output)  # remove dots not between numbers
-            clean_text = re.sub(r"[^\w.\s]", "", clean_text)  # remove other punctuations but keep decimals
+            clean_text = re.sub(r"[^\w.\s-]", "", clean_text)         # keep hyphens and dots
             clean_text = re.sub(r"\s+", " ", clean_text).strip()  # normalize spaces
             print(f"[DEBUG] Cleaned transcription: '{clean_text}'")
         except Exception as e:
@@ -1006,11 +1048,17 @@ class WeldingShopApp:
             return
 
         t = self.translations[self.current_lang]
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".xlsx",
-            filetypes=[("Excel files", "*.xlsx")],
-            initialfile=f"ATNM_Welding_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+
+        # filename = filedialog.asksaveasfilename(
+        #     defaultextension=".xlsx",                 #for downloading window
+        #     filetypes=[("Excel files", "*.xlsx")],
+        #     initialfile=f"ATNM_Welding_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+        # )
+
+        filename = os.path.join(
+            os.getcwd(), f"ATNM_Welding_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         )
+        
         if not filename:
             return
 
@@ -1070,6 +1118,7 @@ class WeldingShopApp:
                 "site_name": "U7",
                 "job_desc": "E8",
                 "location": "U8",
+                "date": "U5"
             }
 
             header_source = self.records[0]
@@ -1124,7 +1173,7 @@ class WeldingShopApp:
 
             # self.status_label.config(text=t["success_export"], fg="green")
             # self.root.after(3000, lambda: self.status_label.config(text=""))
-            messagebox.showinfo("Success", f"Excel exported successfully:\n{filename}")
+            messagebox.showinfo("Success", f"Form saved successfully:\n{filename}")
 
         except Exception as e:
             messagebox.showerror("Error", f"Export failed:\n{str(e)}")
