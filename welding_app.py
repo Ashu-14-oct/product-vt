@@ -255,6 +255,50 @@ class WeldingShopApp:
         """Run speak_sync in a background thread."""
         threading.Thread(target=lambda: self.speak_sync(text), daemon=True).start()
 
+    def _insert_text_to_field(self, field_id, value):
+        """Insert text into the field temporarily (keeps editable)."""
+        try:
+            entry_widget = self.fields[field_id]["entry"]
+            if isinstance(entry_widget, ctk.CTkTextbox):
+                entry_widget.configure(state="normal")
+                entry_widget.delete("1.0", "end")
+                entry_widget.insert("1.0", value)
+            else:
+                entry_widget.delete(0, "end")
+                entry_widget.insert(0, value)
+            print(f"[DEBUG] Temporarily inserted into field '{field_id}': {value}")
+        except Exception as e:
+            print(f"[DEBUG] _insert_text_to_field error for {field_id}: {e}")
+
+    def _lock_field(self, field_id):
+        """Lock the field (make readonly/disabled) and grey out mic."""
+        try:
+            entry_widget = self.fields[field_id]["entry"]
+            mic_button = self.fields[field_id]["mic"]
+            if isinstance(entry_widget, ctk.CTkTextbox):
+                entry_widget.configure(state="disabled")
+            else:
+                entry_widget.configure(state="readonly")
+            mic_button.configure(state="disabled", fg_color="gray")
+            print(f"[DEBUG] Locked field '{field_id}'")
+        except Exception as e:
+            print(f"[DEBUG] _lock_field error for {field_id}: {e}")
+
+    def _clear_field(self, field_id):
+        """Clear the field and re-enable mic."""
+        try:
+            entry_widget = self.fields[field_id]["entry"]
+            mic_button = self.fields[field_id]["mic"]
+            if isinstance(entry_widget, ctk.CTkTextbox):
+                entry_widget.configure(state="normal")
+                entry_widget.delete("1.0", "end")
+            else:
+                entry_widget.delete(0, "end")
+            mic_button.configure(state="normal", fg_color="#1E90FF")
+            print(f"[DEBUG] Cleared and unlocked field '{field_id}'")
+        except Exception as e:
+            print(f"[DEBUG] _clear_field error for {field_id}: {e}")
+
     # -------------------- UI / Flow --------------------
     def create_ui(self):
         """Build modern UI with CustomTkinter."""
@@ -569,6 +613,8 @@ class WeldingShopApp:
             clean_text = re.sub(r"(?<!\d)\.(?!\d)", "", text_output)  # remove dots not between numbers
             clean_text = re.sub(r"[^\w.\s-]", "", clean_text)         # keep hyphens and dots
             clean_text = re.sub(r"\s+", " ", clean_text).strip()  # normalize spaces
+            clean_text = re.sub(r'\bdash\b', '-', clean_text, flags=re.IGNORECASE)
+            
             print(f"[DEBUG] Cleaned transcription: '{clean_text}'")
         except Exception as e:
             print(f"[DEBUG] Recording/Transcription Error: {e}")
@@ -605,7 +651,9 @@ class WeldingShopApp:
         else:
             print(f"[DEBUG] No number conversion applied")
         if clean_text:
-            # Insert and confirm on main thread
+            # Temporarily insert the text into the field on main thread
+            self.root.after(0, lambda fid=field_id, txt=clean_text: self._insert_text_to_field(fid, txt))
+            # Then proceed to voice confirmation in background thread
             try:
                 threading.Thread(
                     target=lambda: self._voice_confirm(field_id, clean_text), daemon=True
@@ -617,7 +665,7 @@ class WeldingShopApp:
         else:
             print("[DEBUG] No speech detected or recognition returned empty text")
 
-    def _voice_confirm(self, field_id, recognized_text, max_retries=2):
+    def _voice_confirm(self, field_id, recognized_text, max_retries=1):
         """
         Voice-based confirmation after transcription with robust handling:
         - waits briefly after TTS so audio device frees
@@ -726,30 +774,9 @@ class WeldingShopApp:
                 tokens = set(re.split(r"\s+|[^\w\u0600-\u06FF]+", response_text))
                 if (tokens & yes_keywords_en) or (tokens & yes_keywords_ar):
                     print("[DEBUG] User confirmed by voice (YES)")
-                    # insert (and lock) the recognized_text into field
-                    try:
-                        # use your helper that handles CTk widgets properly
-                        self._insert_field_value(field_id, recognized_text)
-                    except Exception as e:
-                        print(f"[DEBUG] _insert_field_value failed: {e}")
-                        # fallback manual locking:
-                        entry = self.fields[field_id]["entry"]
-                        mic_btn = self.fields[field_id]["mic"]
-                        try:
-                            if isinstance(entry, ctk.CTkTextbox):
-                                entry.configure(state="normal")
-                                entry.delete("1.0", "end")
-                                entry.insert("end", recognized_text + " ")
-                                entry.configure(state="disabled")
-                            else:
-                                entry.configure(state="normal")
-                                entry.delete(0, "end")
-                                entry.insert(0, recognized_text)
-                                entry.configure(state="readonly")
-                            mic_btn.configure(state="disabled", fg_color="gray")
-                        except Exception as ee:
-                            print(f"[DEBUG] manual insert/lock failed: {ee}")
-                    self.status_label.configure(text="Confirmed and locked!")
+                    # Lock the field (text already inserted)
+                    self.root.after(0, lambda: self._lock_field(field_id))
+                    self.root.after(0, lambda: self.status_label.configure(text="Confirmed and locked!"))
                     self.root.after(2000, lambda: self.status_label.configure(text=""))
                     return
 
@@ -757,20 +784,9 @@ class WeldingShopApp:
                     print("[DEBUG] User rejected by voice (NO)")
                     # speak a retry prompt and clear field for re-recording
                     self.speak_async("Okay, please say it again.")
-                    entry = self.fields[field_id]["entry"]
-                    mic_btn = self.fields[field_id]["mic"]
-                    try:
-                        if isinstance(entry, ctk.CTkTextbox):
-                            entry.configure(state="normal")
-                            entry.delete("1.0", "end")
-                        else:
-                            entry.configure(state="normal")
-                            entry.delete(0, "end")
-                        mic_btn.configure(state="normal", fg_color="#1E90FF")
-                        self.status_label.configure(text="Cleared - please re-record")
-                        self.root.after(2000, lambda: self.status_label.configure(text=""))
-                    except Exception as e:
-                        print(f"[DEBUG] failed to clear field after NO: {e}")
+                    self.root.after(0, lambda: self._clear_field(field_id))
+                    self.root.after(0, lambda: self.status_label.configure(text="Cleared - please re-record"))
+                    self.root.after(2000, lambda: self.status_label.configure(text=""))
                     return
 
                 # unrecognized but not empty => ask to repeat
@@ -815,92 +831,27 @@ class WeldingShopApp:
             t = self.translations[self.current_lang]
             confirm_msg = t["confirm_text"].format(recognized_text)
             if messagebox.askyesno("Confirm Input", confirm_msg):
-                self._insert_field_value(field_id, recognized_text)
-                self.status_label.configure(text="Confirmed and locked!")
+                self.root.after(0, lambda: self._lock_field(field_id))
+                self.root.after(0, lambda: self.status_label.configure(text="Confirmed and locked!"))
                 self.root.after(2000, lambda: self.status_label.configure(text=""))
             else:
                 # user chose No via GUI fallback
-                entry = self.fields[field_id]["entry"]
-                mic_btn = self.fields[field_id]["mic"]
-                if isinstance(entry, ctk.CTkTextbox):
-                    entry.configure(state="normal")
-                    entry.delete("1.0", "end")
-                else:
-                    entry.configure(state="normal")
-                    entry.delete(0, "end")
-                mic_btn.configure(state="normal", fg_color="#1E90FF")
-                self.status_label.configure(text="Cleared - please re-record")
+                self.root.after(0, lambda: self._clear_field(field_id))
+                self.root.after(0, lambda: self.status_label.configure(text="Cleared - please re-record"))
                 self.root.after(2000, lambda: self.status_label.configure(text=""))
         except Exception as e:
             print(f"[DEBUG] Fallback GUI confirm error: {e}")
 
     def _insert_field_value(self, field_id, value):
         """Directly insert text into a field without popup confirmation."""
-        try:
-            entry_widget = self.fields[field_id]["entry"]
-            # CTkTextbox vs CTkEntry handling
-            if isinstance(entry_widget, ctk.CTkTextbox):
-                entry_widget.configure(state="normal")
-                entry_widget.delete("1.0", "end")
-                entry_widget.insert("end", value)
-                entry_widget.configure(state="disabled")
-            else:
-                entry_widget.configure(state="normal")
-                entry_widget.delete(0, "end")
-                entry_widget.insert(0, value)
-                entry_widget.configure(state="readonly")
-
-            # Also disable mic button for this field
-            mic_button = self.fields[field_id].get("mic")
-            if mic_button:
-                mic_button.configure(state="disabled", fg_color="gray")
-
-            print(f"[DEBUG] Inserted and locked field '{field_id}' with value: {value}")
-
-        except Exception as e:
-            print(f"[DEBUG] _insert_field_value error for {field_id}: {e}")
+        pass  # Deprecated - use _insert_text_to_field and _lock_field instead
 
     def _insert_and_confirm(self, field_id, text):
         """Insert transcribed text, ask for confirmation, and lock if confirmed."""
-        print(f"[DEBUG] _insert_and_confirm called for {field_id} with text: '{text}'")
-        entry = self.fields[field_id]["entry"]
-        mic_btn = self.fields[field_id]["mic"]
-        # Insert the text
-        if isinstance(entry, ctk.CTkTextbox):
-            entry.insert("end", text + " ")
-            current_text = entry.get("1.0", "end").strip()
-        else:
-            current = entry.get()
-            entry.delete(0, "end")
-            entry.insert(0, current + " " + text if current else text)
-            current_text = entry.get().strip()
-        print(f"[DEBUG] Inserted text: '{current_text}'")
-        # Ask for confirmation
-        t = self.translations[self.current_lang]
-        confirm_msg = t["confirm_text"].format(current_text)
-        if messagebox.askyesno("Confirm Input", confirm_msg):
-            # Confirmed: Make field uneditable and disable mic
-            if isinstance(entry, ctk.CTkTextbox):
-                entry.configure(state="disabled")
-            else:
-                entry.configure(state="readonly")
-            mic_btn.configure(state="disabled", fg_color="gray")
-            print(f"[DEBUG] Field '{field_id}' locked after confirmation")
-            self.status_label.configure(text="Confirmed and locked!")
-            self.root.after(2000, lambda: self.status_label.configure(text=""))
-        else:
-            # Not confirmed: Clear the field and re-enable mic
-            if isinstance(entry, ctk.CTkTextbox):
-                entry.delete("1.0", "end")
-            else:
-                entry.delete(0, "end")
-            mic_btn.configure(state="normal", fg_color="#1E90FF")
-            print(f"[DEBUG] Field '{field_id}' cleared for re-recording")
-            self.status_label.configure(text="Cleared - please re-record")
-            self.root.after(2000, lambda: self.status_label.configure(text=""))
+        pass  # Deprecated
 
     def _insert_text(self, field_id, text):
-        """Insert transcribed text into field (deprecated, use _insert_and_confirm)"""
+        """Insert transcribed text into field (deprecated, use _insert_text_to_field)"""
         pass  # Not used anymore
 
     def add_entry(self):
@@ -992,14 +943,7 @@ class WeldingShopApp:
             "size", "thk", "weld_side", "root", "material_comb", "pipe_no", "pipe_length",
             "welder_name", "material", "weld_type", "description", "date",
         ]:
-            field = self.fields[field_id]
-            entry = field["entry"]
-            mic = field["mic"]
-            if isinstance(entry, ctk.CTkTextbox):
-                entry.delete("1.0", "end")
-            else:
-                entry.delete(0, "end")
-            mic.configure(state="normal", fg_color="#1E90FF")
+            self._clear_field(field_id)
         # Reset date
         self.fields["date"]["entry"].insert(0, datetime.now().strftime("%Y-%m-%d"))
 
