@@ -80,7 +80,7 @@ class WeldingShopApp:
                 "date": "Date:",
                 "add_entry": "Add Entry",
                 "clear_form": "Clear Form",
-                "download_excel": "Submit Form",
+                "download_excel": "Submit",
                 "language": "Language:",
                 "theme": "Theme:",
                 "records_title": "Records",
@@ -400,7 +400,7 @@ class WeldingShopApp:
         rec_title.pack(pady=10)
 
         # Export button
-        self.export_btn = ctk.CTkButton(rec_frame, text="Submit Form", command=self.export_excel)
+        self.export_btn = ctk.CTkButton(rec_frame, text="Submit", command=self.export_excel)
         self.export_btn.pack(pady=5, fill="x")
 
         # Treeview in a frame
