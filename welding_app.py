@@ -552,9 +552,8 @@ class WeldingShopApp:
             self.table_entries[row] = {}
             for col, field in enumerate(header_fields):
                 if field == "sr_no":
-                    entry = ctk.CTkEntry(row_fr, width=50, state="readonly", fg_color="white")  # Auto Sr.No
-                    entry.insert(0, str(row))
-                    entry.grid(row=0, column=col, padx=1, pady=1, sticky="ew")
+                    sr_lbl = ctk.CTkLabel(row_fr, text=str(row), width=50, font=ctk.CTkFont(weight="bold"))
+                    sr_lbl.grid(row=0, column=col, padx=1, pady=1, sticky="ew")
                 else:
                     entry = self.create_entry_with_mic(row_fr, f"table_row_{row}_{field}", row=0, col=col)
                     self.table_entries[row][field] = entry
