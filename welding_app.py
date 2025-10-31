@@ -382,7 +382,7 @@ class WeldingShopApp:
 
         # Logo left - fixed width
         logo_fr = ctk.CTkFrame(header_main, fg_color="transparent", width=150)
-        logo_fr.pack(side="left", fill="y", padx=(0, 10))
+        logo_fr.pack(side="left", fill="y", padx=(50, 30))
         logo_fr.grid_propagate(False)  # Fix width
         try:
             logo_img = ctk.CTkImage(light_image=Image.open("logo.png"), size=(120, 100))
@@ -394,17 +394,30 @@ class WeldingShopApp:
             logo_lbl.pack(pady=10)
 
         # Right side: Orange block for company name
-        orange_block = ctk.CTkFrame(header_main, fg_color="#FF8C00", height=60, corner_radius=0)
-        orange_block.pack(side="right", fill="x", expand=True)
-        orange_block.grid_propagate(False)  # Enforce height
-        company_lbl = ctk.CTkLabel(orange_block, text=t["title"], font=ctk.CTkFont(size=20, weight="bold"), text_color="white")
+        right_header = ctk.CTkFrame(header_main, fg_color="transparent")
+        right_header.pack(side="right", fill="both", expand=True)
+        
+        orange_block = ctk.CTkFrame(right_header, fg_color="#FF8C00", height=60, corner_radius=0)
+        orange_block.pack(fill="x")
+        orange_block.grid_propagate(False)
+        company_lbl = ctk.CTkLabel(
+            orange_block,
+            text=t["title"],
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        )
         company_lbl.pack(expand=True, pady=10)
 
-        # Below header_main: Blue block for form title
+        # Below header_main: Blue block for form title (full width)
         form_block = ctk.CTkFrame(main_scroll, fg_color="#000080", height=40, corner_radius=0)
         form_block.pack(fill="x", pady=(0, 10))
         form_block.grid_propagate(False)
-        form_lbl = ctk.CTkLabel(form_block, text=t["form_title"], font=ctk.CTkFont(size=16, weight="bold"), text_color="white")
+        form_lbl = ctk.CTkLabel(
+            form_block,
+            text=t["form_title"],
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="white"
+        )
         form_lbl.pack(expand=True, pady=10)
 
         # Fields block - light blue divided header block
