@@ -36,93 +36,179 @@ class WeldingShopApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Al Tasnim Enterprises LLC")
-        self.root.geometry("1000x700")
-
+        self.root.geometry("1400x900")  # Wider and taller for better table visibility
+        
+        self.entry_frames = {}      # map field_id -> container frame
+        self.mic_buttons = {}       # map field_id -> mic button widget
+        self.display_labels = {}
         # Data storage
-        self.records = []
+        self.records = []  # List of dicts for table rows
         self.data_file = "welding_data.json"
         self.load_data()
+        
+        self.header_entries = {}
+        self.table_entries = {}
+        self.signature_entries = {}
+        self.status_label = None
+
+        # Header fields data
+        self.header_data = {
+            "contract_number": "",
+            "contract_title": "",
+            "report_number": "",
+            "date": datetime.now().strftime("%Y-%m-%d"),  # Activity Date
+            "po_wo_number": "",
+            "client_wps_number": "",
+            "project_title_wellID": "",
+            "drawing_no": "",
+            "line_no": "",
+            "site_name": "",
+            "job_desc": "",
+            "location": "",
+            # Welding Consumable
+            "aws_classification": "",
+            "electrode_dia": "",
+            "manufacturer_batch": "",
+            # Signatures
+            "permit_holder_name": "",
+            "permit_holder_signature": "",
+            "permit_holder_date": "",
+            "qci_name": "",
+            "qci_signature": "",
+            "qci_date": "",
+            "pdo_name": "",
+            "pdo_signature": "",
+            "pdo_date": "",
+            "data_entry_name": "",
+            "data_entry_signature": "",
+            "data_entry_date": "",
+        }
 
         # Language settings
         self.current_lang = "en"
         self.translations = {
             "en": {
                 "title": "AL TASNIM ENTERPRISES LLC",
-                "add_form_title": "Add Welding Entry",
-                "job_id": "Job ID:",
-                "contract_number": "Contract No.",
+                "form_title": "Daily Welding Production - Visual Inspection Report",
+                "contract_number": "Contract No.:",
                 "contract_title": "Contract Title:",
-                "report_number": "Report No.",
-                "po_wo_number": "PO / WO No.",
-                "client_wps_number": "Client WPS No.",
-                "project_title_wellID": "Project Title / Well ID:",
-                "drawing_no": "Drawing/ISO No.",
-                "line_no": "Line No.",
+                "report_number": "Report No.:",
+                "date": "Activity Date:",
+                "po_wo_number": "PO / WO No.:",
+                "client_wps_number": "Client WPS No.:",
+                "project_title_wellID": "Project Title/Well ID:",
+                "drawing_no": "Drawing/ISO No.:",
+                "line_no": "Line No.:",
                 "site_name": "Site Name:",
-                "job_desc": "Job description:",
+                "job_desc": "Job Description:",
                 "location": "Location:",
-                "weld_id": "Weld ID:",
-                "kp_sec": "KP Sec:",
-                "wps_no": "WPS No:",
-                "material_gr": "Material Gr:",
-                "heat_no": "Heat No:",
-                "size": "Size(Inches):",
-                "thk": "Thk(mm):",
-                "weld_side": "Weld Side:",
-                "root": "Root:",
-                "material_comb": "Mtrl. Comb:",
-                "pipe_no": "Pipe No:",
-                "pipe_length": "Pipe length(mtrs):",
-                "welder_name": "Welder Name:",
-                "material": "Material:",
-                "weld_type": "Weld Type:",
-                "description": "Description:",
+                "table_headers": {
+                    "sr_no": "Sr.No",
+                    "kp_sec": "KP Sec.",
+                    "weld_id": "Weld ID",
+                    "wps_no": "WPS No.",
+                    "material_gr_heat": "Material Gr./ Heat No.",
+                    "size": "Size",
+                    "thk": "Thk.",
+                    "weld_side": "Weld Side",
+                    "welder_process": "Welder No. / Welding Process",
+                    "visual_i": "I",
+                    "visual_ii": "II",
+                    "root_hot": "Root/Hot",
+                    "fill1": "Fill…………..",
+                    "fill2": "Fill…………..",
+                    "cap": "Cap…………..",
+                    "final": "Final",
+                    "fit_up": "Fit up",
+                    "mtrl_comb": "Mtrl. Comb.",
+                    "pipe_line": "Pipe Line",
+                    "pipe_no": "Pipe No. / Spl. No.",
+                    "pipe_length": "Pipe length (mtrs)",
+                    "remarks": "Remarks",
+                },
+                "welding_consumable": "Welding Consumable",
+                "aws_classification": "AWS Classification",
+                "electrode_dia": "Electrode Dia. (mm)",
+                "manufacturer_batch": "Manufacturer & Batch No.",
+                "material_grade_legend": "Material Grade Legend: 1 = A 106 Gr. B;  2 = A 105N;  3 = A 234 Gr WPB;  4 = ISO 3183- L245 (Gr. B);  5 = ISO 3183 L290 (X42);  6 = ISO 3183- L360 (X52); 7 = ISO 3183- L415 (X60);  8 = ISO 3183- L450 (X65);  9 = ISO 3183- L485 (X70);  10 = A312 TP-316L/316;  11 = A403 WP-316L/316;  12 = A182 F316L/316;  13 = B444 (UNS N06625);  14 = B424 (UNS N08825);  15 = B668 (UNS N8028);  16 = A790 (UNS S31803);  17 = A182 F51 (UNS S31803);  18 = A928Cl:1 (UNS 31803);  19 = A 815 (UNS S31803);  20 = A 333 Gr. 6;  21 = A 420 WPL 6;  22 = A350 LF 2;  23 = AISI 4130;  24 = A694 F42;  25 = A694 F 52;  26 = A694 F60;  27 = A694 F 65;  28 = A694 F 70;  29 = A240 Gr. 316;  30 = B564 (UNS N08825);  31 = A358 TP-316L/316;  32 = B366 Gr: WPNICMC; 33 = ISO 15590-2/3- L245 (Gr. B);  34  = ISO 15590-2/3 L290 (X42); 35 = ISO 15590-2/3 L360 (X52); 36 = ISO 15590-2/3 L415 (X60); 37 = ISO 15590-2/3 L450 (X65);  38 = ISO 15590-2/3 L485 (X70) ;    39 =  S275 JR    ; 40 =  S355 JR  ; 41 =  S355 NL / K2+N    42 = ASTM A790/A928 (UNS S32750/ S32760 )  ; 43 = ASTM A182 F53 (UNS S32760)  ;    44 = ASTM A815 (UNS S32760)      ",
+                "welding_process_legend": "Welding Process Legend:  P1 = GTAW;  P2: = SMAW;  P3 = GMAW;  P4 = FCAW;  P5 = SAW           Weld Side based on the direction of welding:  A = 12 - 6 O'Clock Position;  B = 6 - 12 O'Clock Position",
+                "permit_holder": "ATNM Permit Holder",
+                "qci": "ATNM QCI",
+                "pdo": "PDO",
+                "data_entry": "Data Entry By",
+                "name": "Name:",
+                "signature": "Signature:",
                 "date": "Date:",
-                "add_entry": "Add Entry",
+                "add_entry": "Add Entry",  # Not used in new UI
                 "clear_form": "Clear Form",
                 "download_excel": "Submit",
                 "language": "Language:",
                 "theme": "Theme:",
-                "records_title": "Records",
-                "delete": "Delete",
+                "records_title": "Records",  # Not used
+                "delete": "Delete",  # Not used
                 "success_add": "Entry added successfully!",
                 "success_export": "Form exported successfully!",
-                "error_fill": "Please fill Job ID and Welder Name",
+                "error_fill": "Please fill required fields",
                 "recording": "Recording... Speak now",
                 "mic_tooltip": "Click to record voice",
                 "confirm_text": "Is this correct: '{}'? (Yes to confirm and lock field, No to re-record)",
-                },
-                "ar": {
+                "confirm_prompt": "You said {}. Do you confirm?",
+                "no_hear": "I didn't hear you. Please say yes or no.",
+                "no_catch": "I didn't catch that. Please say yes or no.",
+                "okay_retry": "Okay, please say it again.",
+            },
+            "ar": {
+                # Arabic translations (placeholder, expand as needed)
                 "title": "إدارة ورشة اللحام",
-                "add_form_title": "إضافة سجل اللحام",
-                "job_id": "رقم العمل:",
+                "form_title": "تقرير إنتاج اللحام اليومي - تقرير التفتيش البصري",
                 "contract_number": "رقم العقد:",
                 "contract_title": "عنوان العقد:",
                 "report_number": "رقم التقرير:",
-                "po_wo_number": "رقم PO/WO:",
+                "date": "تاريخ النشاط:",
+                "po_wo_number": "رقم PO / WO:",
                 "client_wps_number": "رقم WPS العميل:",
                 "project_title_wellID": "عنوان المشروع / معرف البئر:",
                 "drawing_no": "رقم الرسم/ISO:",
                 "line_no": "رقم الخط:",
                 "site_name": "اسم الموقع:",
-                "job_desc": "وصف العمل:",
+                "job_desc": "وصف الوظيفة:",
                 "location": "الموقع:",
-                "weld_id": "رقم اللحام:",
-                "kp_sec": "قسم KP:",
-                "wps_no": "رقم WPS:",
-                "material_gr": "درجة المادة:",
-                "heat_no": "رقم الحرارة:",
-                "size": "الحجم (بوصة):",
-                "thk": "السماكة (مم):",
-                "weld_side": "جانب اللحام:",
-                "root": "الجذر:",
-                "material_comb": "تركيبة المادة:",
-                "pipe_no": "رقم الأنبوب:",
-                "pipe_length": "طول الأنبوب (متر):",
-                "welder_name": "اسم اللحام:",
-                "material": "المادة:",
-                "weld_type": "نوع اللحام:",
-                "description": "الوصف:",
+                "table_headers": {
+                    "sr_no": "الرقم التسلسلي",
+                    "kp_sec": "قسم KP",
+                    "weld_id": "رقم اللحام",
+                    "wps_no": "رقم WPS",
+                    "material_gr_heat": "درجة المادة / رقم الحرارة",
+                    "size": "الحجم",
+                    "thk": "السماكة",
+                    "weld_side": "جانب اللحام",
+                    "welder_process": "رقم اللحام / عملية اللحام",
+                    "visual_i": "I",
+                    "visual_ii": "II",
+                    "root_hot": "الجذر/ساخن",
+                    "fill1": "ملء…………..",
+                    "fill2": "ملء…………..",
+                    "cap": "غطاء…………..",
+                    "final": "نهائي",
+                    "fit_up": "تركيب",
+                    "mtrl_comb": "تركيبة المادة",
+                    "pipe_line": "خط الأنابيب",
+                    "pipe_no": "رقم الأنبوب / رقم خاص",
+                    "pipe_length": "طول الأنبوب (متر)",
+                    "remarks": "ملاحظات",
+                },
+                "welding_consumable": "مستهلكات اللحام",
+                "aws_classification": "تصنيف AWS",
+                "electrode_dia": "قطر الإلكترود (مم)",
+                "manufacturer_batch": "الشركة المصنعة & رقم الدفعة",
+                "material_grade_legend": "أسطورة درجة المادة: ...",  # Translate full
+                "welding_process_legend": "أسطورة عملية اللحام: ...",  # Translate full
+                "permit_holder": "حامل تصريح ATNM",
+                "qci": "QCI ATNM",
+                "pdo": "PDO",
+                "data_entry": "إدخال البيانات بواسطة",
+                "name": "الاسم:",
+                "signature": "التوقيع:",
                 "date": "التاريخ:",
                 "add_entry": "إضافة سجل",
                 "clear_form": "مسح النموذج",
@@ -133,11 +219,15 @@ class WeldingShopApp:
                 "delete": "حذف",
                 "success_add": "تمت إضافة السجل بنجاح!",
                 "success_export": "تم تصدير النموذج بنجاح!",
-                "error_fill": "يرجى ملء رقم العمل واسم اللحام",
+                "error_fill": "يرجى ملء الحقول المطلوبة",
                 "recording": "جاري التسجيل... تحدث الآن",
                 "mic_tooltip": "انقر للتسجيل الصوتي",
                 "confirm_text": "هل هذا صحيح: '{}'؟ (نعم للتأكيد وتثبيت الحقل، لا لإعادة التسجيل)",
-                },
+                "confirm_prompt": "قلت {}. هل تؤكد؟",
+                "no_hear": "لم أسمعك. يرجى القول نعم أو لا.",
+                "no_catch": "لم أفهم ذلك. يرجى القول نعم أو لا.",
+                "okay_retry": "حسنا، يرجى قوله مرة أخرى.",
+            },
         }
 
         # Number word dictionaries for conversion
@@ -169,9 +259,15 @@ class WeldingShopApp:
         self.audio = None
         self.stream = None
 
+        # UI elements dicts
+        self.header_entries = {}
+        self.table_entries = {}  # {row: {field: entry}}
+        self.signature_entries = {}
+
         # Build UI
         self.create_ui()
         self.update_language()
+        self.load_to_ui()  # Load saved data to UI
 
     def load_whisper_model(self):
         try:
@@ -214,40 +310,45 @@ class WeldingShopApp:
     # -------------------- TTS helpers --------------------
     def speak_sync(self, text, timeout=20):
         """
-        Speak text synchronously using platform-native method when possible.
+        Speak text synchronously using pyttsx3 with language-appropriate voice selection.
         """
         try:
-            system = platform.system()
-            if system == "Windows":
-                # Use PowerShell SAPI synchronously and pass text via stdin
-                ps_script = (
-                    "Add-Type -AssemblyName System.Speech;"
-                    + "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer;"
-                    + "$s.Speak([Console]::In.ReadToEnd());"
-                )
-                subprocess.run([
-                    "powershell",
-                    "-Command",
-                    ps_script,
-                ], input=text.encode("utf-8"), timeout=timeout)
-                return
-
-            if system == "Darwin":
-                subprocess.run(["say", text], check=False, timeout=timeout)
-                return
-
-            # Fallback: pyttsx3
             local_tts = pyttsx3.init()
-            try:
-                local_tts.setProperty("rate", 160)
-            except Exception:
-                pass
+            local_tts.setProperty("rate", 160)
+            local_tts.setProperty("volume", 1.0)  # Max volume
+
+            # Select voice based on current language
+            voices = local_tts.getProperty('voices')
+            print("[DEBUG] Available TTS voices:")
+            for v in voices:
+                print(f" - Name: {v.name}, ID: {v.id}, Languages: {v.languages}")
+
+            target_lang = 'arabic' if self.current_lang == "ar" else 'english'
+            selected = False
+            for voice in voices:
+                langs = voice.languages if isinstance(voice.languages, list) else [str(voice.languages)]
+                name_lower = voice.name.lower()
+                lang_lower = [l.lower() for l in langs] if isinstance(langs, list) else [langs.lower()]
+                if self.current_lang == "ar" and any('ar' in l or 'arabic' in l for l in lang_lower):
+                    local_tts.setProperty('voice', voice.id)
+                    selected = True
+                    print(f"[DEBUG] Selected Arabic voice: {voice.name}")
+                    break
+                elif self.current_lang == "en" and any('en' in l or 'english' in l for l in lang_lower):
+                    local_tts.setProperty('voice', voice.id)
+                    selected = True
+                    print(f"[DEBUG] Selected English voice: {voice.name}")
+                    break
+
+            if not selected and voices:
+                local_tts.setProperty('voice', voices[0].id)  # Force first voice
+                print(f"[WARN] No suitable voice for {self.current_lang.upper()} found, using default: {voices[0].name}")
+
+            print(f"[DEBUG] Speaking: '{text}' with voice rate 160, volume 1.0")
             local_tts.say(text)
             local_tts.runAndWait()
-            try:
-                local_tts.stop()
-            except Exception:
-                pass
+            local_tts.stop()
+            print("[DEBUG] TTS completed")
         except Exception as e:
             print(f"[speak_sync] error: {e}")
 
@@ -255,552 +356,556 @@ class WeldingShopApp:
         """Run speak_sync in a background thread."""
         threading.Thread(target=lambda: self.speak_sync(text), daemon=True).start()
 
-    def _insert_text_to_field(self, field_id, value):
-        """Insert text into the field temporarily (keeps editable)."""
-        try:
-            entry_widget = self.fields[field_id]["entry"]
-            if isinstance(entry_widget, ctk.CTkTextbox):
-                entry_widget.configure(state="normal")
-                entry_widget.delete("1.0", "end")
-                entry_widget.insert("1.0", value)
-            else:
-                entry_widget.delete(0, "end")
-                entry_widget.insert(0, value)
-            print(f"[DEBUG] Temporarily inserted into field '{field_id}': {value}")
-        except Exception as e:
-            print(f"[DEBUG] _insert_text_to_field error for {field_id}: {e}")
+    def get_field_label(self, field_id):
+        """Get label text for question based on field_id."""
+        if field_id.startswith("header_"):
+            key = field_id[7:]  # remove "header_"
+            return self.translations[self.current_lang].get(key, key)
+        elif field_id.startswith("table_row_"):
+            parts = field_id.split("_")
+            if len(parts) >= 4 and parts[:2] == ['table', 'row']:
+                field = "_".join(parts[3:])
+                return self.translations[self.current_lang]["table_headers"].get(field, field)
+        return field_id
 
-    def _lock_field(self, field_id):
-        """Lock the field (make readonly/disabled) and grey out mic."""
-        try:
-            entry_widget = self.fields[field_id]["entry"]
-            mic_button = self.fields[field_id]["mic"]
-            if isinstance(entry_widget, ctk.CTkTextbox):
-                entry_widget.configure(state="disabled")
-            else:
-                entry_widget.configure(state="readonly")
-            mic_button.configure(state="disabled", fg_color="gray")
-            print(f"[DEBUG] Locked field '{field_id}'")
-        except Exception as e:
-            print(f"[DEBUG] _lock_field error for {field_id}: {e}")
-
-    def _clear_field(self, field_id):
-        """Clear the field and re-enable mic."""
-        try:
-            entry_widget = self.fields[field_id]["entry"]
-            mic_button = self.fields[field_id]["mic"]
-            if isinstance(entry_widget, ctk.CTkTextbox):
-                entry_widget.configure(state="normal")
-                entry_widget.delete("1.0", "end")
-            else:
-                entry_widget.delete(0, "end")
-            mic_button.configure(state="normal", fg_color="#1E90FF")
-            print(f"[DEBUG] Cleared and unlocked field '{field_id}'")
-        except Exception as e:
-            print(f"[DEBUG] _clear_field error for {field_id}: {e}")
-
-    # -------------------- UI / Flow --------------------
     def create_ui(self):
-        """Build modern UI with CustomTkinter."""
-        # ---------- HEADER ------------------------------------------------
-        # header with orange background
-        header = ctk.CTkFrame(self.root, height=70, corner_radius=0, fg_color="#FF8C00")  # or "#FFA500"
-        header.pack(fill="x")
-        header.pack_propagate(False)
+        """Build UI mimicking the Excel sheet layout."""
+        # Main scrollable frame for overall content
+        main_scroll = ctk.CTkScrollableFrame(self.root, corner_radius=10)
+        main_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-        try:
-            logo_path = os.path.join(os.getcwd(), "logo.png")   # adjust if logo is elsewhere
-            print(f"[DEBUG] ------------------------------------------------ Loading logo from: {logo_path}")
-            if os.path.exists(logo_path):
-                pil_img = Image.open("logo.png")
-                pil_img = pil_img.resize((140, 40), Image.LANCZOS)   # (width, height) forced — stretches
-                self.logo_img = ctk.CTkImage(pil_img, size=(140, 40))
-                self.logo_label = ctk.CTkLabel(header, image=self.logo_img, text="")
-                self.logo_label.pack(side="left", padx=(6, 4), pady=12)
+        # Header frame
+        header_fr = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        header_fr.pack(fill="x", pady=10)
+        
+        self.status_label = ctk.CTkLabel(header_fr, text="", width=300, anchor="e")
+        self.status_label.pack(side="right", padx=8, pady=8)
 
-            else:
-                print(f"[WARN] logo.png not found at {logo_path}")
-        except Exception as e:
-            print(f"[WARN] Failed to load logo: {e}")
-        # ===============================================================
+        # Company title
+        title_lbl = ctk.CTkLabel(header_fr, text=self.translations[self.current_lang]["title"], font=ctk.CTkFont(size=18, weight="bold"))
+        title_lbl.pack(pady=5)
 
-        self.title_label = ctk.CTkLabel(
-            header,
-            text="Al Tasnim Enterprises LLC",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="white"
+        # Form title
+        form_lbl = ctk.CTkLabel(header_fr, text=self.translations[self.current_lang]["form_title"], font=ctk.CTkFont(size=16, weight="bold"))
+        form_lbl.pack(pady=5)
+
+        # Header fields grid (simulate Excel rows 5-8)
+        header_grid = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        header_grid.pack(fill="x", pady=10)
+        for i in range(6):
+            header_grid.grid_columnconfigure(i, weight=1)
+
+        t = self.translations[self.current_lang]
+
+        # Row 1: Contract No., Contract Title, Report No.
+        ctk.CTkLabel(header_grid, text=t["contract_number"]).grid(row=0, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["contract_number"] = self.create_entry_with_mic(header_grid, "header_contract_number", row=0, col=1)
+        ctk.CTkLabel(header_grid, text=t["contract_title"]).grid(row=0, column=2, sticky="w", padx=5, pady=2)
+        self.header_entries["contract_title"] = self.create_entry_with_mic(header_grid, "header_contract_title", row=0, col=3)
+        ctk.CTkLabel(header_grid, text=t["report_number"]).grid(row=0, column=4, sticky="w", padx=5, pady=2)
+        self.header_entries["report_number"] = self.create_entry_with_mic(header_grid, "header_report_number", row=0, col=5)
+
+        # Row 2: Activity Date
+        ctk.CTkLabel(header_grid, text=t["date"]).grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["date"] = ctk.CTkEntry(header_grid, width=150)
+        self.header_entries["date"].insert(0, self.header_data["date"])
+        self.header_entries["date"].grid(row=1, column=1, sticky="ew", padx=5, pady=2)
+
+        # Row 3: PO / WO No., Client WPS No., Project Title/Well ID
+        ctk.CTkLabel(header_grid, text=t["po_wo_number"]).grid(row=2, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["po_wo_number"] = self.create_entry_with_mic(header_grid, "header_po_wo_number", row=2, col=1)
+        ctk.CTkLabel(header_grid, text=t["client_wps_number"]).grid(row=2, column=2, sticky="w", padx=5, pady=2)
+        self.header_entries["client_wps_number"] = self.create_entry_with_mic(header_grid, "header_client_wps_number", row=2, col=3)
+        ctk.CTkLabel(header_grid, text=t["project_title_wellID"]).grid(row=2, column=4, sticky="w", padx=5, pady=2)
+        self.header_entries["project_title_wellID"] = self.create_entry_with_mic(header_grid, "header_project_title_wellID", row=2, col=5)
+
+        # Row 4: Drawing/ISO No., Line No., Site Name
+        ctk.CTkLabel(header_grid, text=t["drawing_no"]).grid(row=3, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["drawing_no"] = self.create_entry_with_mic(header_grid, "header_drawing_no", row=3, col=1)
+        ctk.CTkLabel(header_grid, text=t["line_no"]).grid(row=3, column=2, sticky="w", padx=5, pady=2)
+        self.header_entries["line_no"] = self.create_entry_with_mic(header_grid, "header_line_no", row=3, col=3)
+        ctk.CTkLabel(header_grid, text=t["site_name"]).grid(row=3, column=4, sticky="w", padx=5, pady=2)
+        self.header_entries["site_name"] = self.create_entry_with_mic(header_grid, "header_site_name", row=3, col=5)
+
+        # Row 5: Job Description (span 2 cols), Location (span 2 cols)
+        ctk.CTkLabel(header_grid, text=t["job_desc"]).grid(row=4, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["job_desc"] = self.create_entry_with_mic(header_grid, "header_job_desc", row=4, col=1, colspan=2)
+        ctk.CTkLabel(header_grid, text=t["location"]).grid(row=4, column=3, sticky="w", padx=5, pady=2)
+        self.header_entries["location"] = self.create_entry_with_mic(header_grid, "header_location", row=4, col=4, colspan=2)
+
+        # Table section - Using a scrollable frame for vertical, canvas for horizontal
+        table_outer = ctk.CTkFrame(main_scroll, corner_radius=10)
+        table_outer.pack(fill="both", expand=True, pady=10)
+
+        # Horizontal scroll canvas
+        self.canvas = tk.Canvas(table_outer)
+        h_scrollbar = ctk.CTkScrollbar(table_outer, orientation="horizontal", command=self.canvas.xview)
+        h_scrollbar.pack(side="bottom", fill="x")
+        self.canvas.configure(xscrollcommand=h_scrollbar.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+
+        # Vertical scrollbar
+        v_scrollbar = ctk.CTkScrollbar(table_outer, orientation="vertical", command=self.canvas.yview)
+        v_scrollbar.pack(side="right", fill="y")
+        self.canvas.configure(yscrollcommand=v_scrollbar.set)
+
+        # Inner frame
+        inner_table = ctk.CTkFrame(self.canvas)
+        self.inner_id = self.canvas.create_window((0, 0), window=inner_table, anchor="nw")
+
+        def update_scrollregion(event):
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        inner_table.bind("<Configure>", update_scrollregion)
+
+        def update_canvas_width(event):
+            canvas_width = event.width
+            self.canvas.itemconfig(self.inner_id, width=canvas_width)
+
+        self.canvas.bind("<Configure>", update_canvas_width)
+
+        # Mouse wheel bindings for better scrolling
+        def on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def on_shift_mousewheel(event):
+            self.canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        # Bind to root for global scrolling
+        self.root.bind_all("<MouseWheel>", on_mousewheel)
+        self.root.bind_all("<Shift-MouseWheel>", on_shift_mousewheel)
+        # For Linux
+        self.root.bind_all("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
+        self.root.bind_all("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
+        self.root.bind_all("<Shift-Button-4>", lambda e: self.canvas.xview_scroll(-1, "units"))
+        self.root.bind_all("<Shift-Button-5>", lambda e: self.canvas.xview_scroll(1, "units"))
+
+        # Bind to canvas too
+        self.canvas.bind("<MouseWheel>", on_mousewheel)
+        self.canvas.bind("<Shift-MouseWheel>", on_shift_mousewheel)
+
+        # Table headers
+        headers_fr = ctk.CTkFrame(inner_table, fg_color="gray90")
+        headers_fr.pack(fill="x")
+
+        header_fields = ["sr_no", "kp_sec", "weld_id", "wps_no", "material_gr_heat", "size", "thk", "weld_side", "welder_process", "visual_i", "visual_ii", "root_hot", "fill1", "fill2", "cap", "final", "fit_up", "mtrl_comb", "pipe_line", "pipe_no", "pipe_length", "remarks"]
+        num_cols = len(header_fields)
+        for i in range(num_cols):
+            headers_fr.grid_columnconfigure(i, weight=1, minsize=70)  # Increased minsize for visibility
+        
+        for col, field in enumerate(header_fields):
+            lbl = ctk.CTkLabel(headers_fr, text=t["table_headers"][field], font=ctk.CTkFont(weight="bold"))
+            lbl.grid(row=0, column=col, padx=1, pady=5, sticky="ew")
+
+        # 10 data rows
+        self.table_entries = {}
+        for row in range(1, 11):
+            row_fr = ctk.CTkFrame(inner_table)
+            row_fr.pack(fill="x")
+            for i in range(num_cols):
+                row_fr.grid_columnconfigure(i, weight=1, minsize=70)
+
+            self.table_entries[row] = {}
+            for col, field in enumerate(header_fields):
+                if field == "sr_no":
+                    entry = ctk.CTkEntry(row_fr, width=50, state="readonly")  # Auto Sr.No
+                    entry.insert(0, str(row))
+                    entry.grid(row=0, column=col, padx=1, pady=1, sticky="ew")
+                else:
+                    entry = self.create_entry_with_mic(row_fr, f"table_row_{row}_{field}", row=0, col=col)
+                    self.table_entries[row][field] = entry
+
+        # Welding Consumable section
+        consumable_fr = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        consumable_fr.pack(fill="x", pady=10)
+        for i in range(2):
+            consumable_fr.grid_columnconfigure(i, weight=1)
+
+        ctk.CTkLabel(consumable_fr, text=t["welding_consumable"], font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ctk.CTkLabel(consumable_fr, text=t["aws_classification"]).grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["aws_classification"] = self.create_entry_with_mic(consumable_fr, "header_aws_classification", row=1, col=1)
+        ctk.CTkLabel(consumable_fr, text=t["electrode_dia"]).grid(row=2, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["electrode_dia"] = self.create_entry_with_mic(consumable_fr, "header_electrode_dia", row=2, col=1)
+        ctk.CTkLabel(consumable_fr, text=t["manufacturer_batch"]).grid(row=3, column=0, sticky="w", padx=5, pady=2)
+        self.header_entries["manufacturer_batch"] = self.create_entry_with_mic(consumable_fr, "header_manufacturer_batch", row=3, col=1)
+
+        # Legends
+        legend_fr = ctk.CTkFrame(main_scroll, fg_color="lightgray")
+        legend_fr.pack(fill="x", pady=10)
+        ctk.CTkLabel(legend_fr, text=t["material_grade_legend"], justify="left", anchor="w", font=ctk.CTkFont(size=10)).pack(pady=5, padx=5)
+        ctk.CTkLabel(legend_fr, text=t["welding_process_legend"], justify="left", anchor="w", font=ctk.CTkFont(size=10)).pack(pady=5, padx=5)
+
+        # Signatures frame
+        sig_fr = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        sig_fr.pack(fill="x", pady=10)
+        for i in range(13):  # Enough columns
+            sig_fr.grid_columnconfigure(i, weight=1)
+
+        sig_keys = ["permit_holder", "qci", "pdo", "data_entry"]
+        for i, key in enumerate(sig_keys):
+            col_offset = i * 3
+            ctk.CTkLabel(sig_fr, text=t[key], font=ctk.CTkFont(weight="bold")).grid(row=0, column=col_offset, sticky="w", padx=5, pady=5)
+            ctk.CTkLabel(sig_fr, text=t["name"]).grid(row=1, column=col_offset, sticky="w", padx=5)
+            self.signature_entries[f"{key}_name"] = ctk.CTkEntry(sig_fr, width=150)
+            self.signature_entries[f"{key}_name"].grid(row=1, column=col_offset+1, sticky="ew", padx=5, pady=2)
+            ctk.CTkLabel(sig_fr, text=t["signature"]).grid(row=2, column=col_offset, sticky="w", padx=5)
+            sig_entry = ctk.CTkEntry(sig_fr, placeholder_text="Signature", width=150)
+            self.signature_entries[f"{key}_signature"] = sig_entry
+            sig_entry.grid(row=2, column=col_offset+1, sticky="ew", padx=5, pady=2)
+            ctk.CTkLabel(sig_fr, text=t["date"]).grid(row=3, column=col_offset, sticky="w", padx=5)
+            self.signature_entries[f"{key}_date"] = ctk.CTkEntry(sig_fr, width=150)
+            self.signature_entries[f"{key}_date"].insert(0, datetime.now().strftime("%Y-%m-%d"))
+            self.signature_entries[f"{key}_date"].grid(row=3, column=col_offset+1, sticky="ew", padx=5, pady=2)
+
+        # Buttons
+        btn_fr = ctk.CTkFrame(main_scroll)
+        btn_fr.pack(fill="x", pady=10)
+        self.clear_btn = ctk.CTkButton(btn_fr, text=t["clear_form"], fg_color="gray", command=self.clear_form)
+        self.clear_btn.pack(side="left", padx=5)
+        self.export_btn = ctk.CTkButton(btn_fr, text=t["download_excel"], command=self.export_excel)
+        self.export_btn.pack(side="right", padx=5)
+
+    def create_entry_with_mic(self, parent, field_id, row=0, col=0, colspan=1):
+        """Create an entry + mic button using grid for better space management."""
+        fr = ctk.CTkFrame(parent)
+        fr.grid(row=row, column=col, columnspan=colspan, sticky="ew", padx=1, pady=1)
+        fr.grid_columnconfigure(0, weight=1)
+        fr.grid_columnconfigure(1, weight=0, minsize=35)  # Fixed space for mic
+
+        entry = ctk.CTkEntry(fr)
+        entry.grid(row=0, column=0, sticky="ew", padx=(2, 2), pady=2)
+
+        mic_btn = ctk.CTkButton(
+            fr,
+            text="🎤",
+            width=30,
+            height=25,
+            corner_radius=8,
+            command=lambda f=field_id: self.record_voice(f)
         )
-        self.title_label.pack(side="left", padx=20, pady=15)
+        mic_btn.grid(row=0, column=1, sticky="e", padx=(2, 2), pady=2)
 
-        # Theme toggle (new: dark/light switch)
-        theme_fr = ctk.CTkFrame(header)
-        theme_fr.pack(side="right", padx=20, pady=15)
-        ctk.CTkLabel(theme_fr, text="Theme:").pack(side="left", padx=(0, 5))
-        self.theme_switch = ctk.CTkSwitch(
-            theme_fr, text="", command=self.toggle_theme, onvalue="dark", offvalue="light"
-        )
-        self.theme_switch.pack(side="left")
-        self.theme_switch.select() if ctk.get_appearance_mode() == "dark" else None
+        # Store references
+        self.entry_frames[field_id] = fr
+        self.mic_buttons[field_id] = mic_btn
 
-        # Language selector
-        lang_fr = ctk.CTkFrame(header, fg_color="transparent", corner_radius=0)
-        lang_fr.pack(side="right", padx=(8, 10), pady=12)   # smaller right padding so it sits closer to title/logo
+        print(f"[DEBUG] created mic for {field_id}")
 
-        # white label so it shows up on the orange header
-        lang_label = ctk.CTkLabel(
-            lang_fr,
-            text="Language:",
-            text_color="white",
-            font=ctk.CTkFont(size=12, weight="bold")   # <-- bold and slightly larger
-        )
-        lang_label.pack(side="left", padx=(0, 6))
+        return entry
 
-        self.lang_var = ctk.StringVar(value="English")
-        lang_cb = ctk.CTkComboBox(
-            lang_fr,
-            values=["English", "العربية"],
-            variable=self.lang_var,
-            state="readonly",
-            width=120,
-            command=lambda v: self.change_language(v)   # CTkComboBox passes the selected value
-        )
-
-        lang_cb.pack(side="left")
-
-        # ---------- MAIN SCROLLABLE CONTENT -------------------------------
-        scrollable = ctk.CTkScrollableFrame(self.root, corner_radius=10)
-        scrollable.pack(fill="both", expand=True, padx=20, pady=20)
-
-        # ---------- LEFT: FORM --------------------------------------------
-        form_frame = ctk.CTkFrame(scrollable, corner_radius=10)
-        form_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
-
-        # Use grid for the entire form_frame
-        form_frame.grid_columnconfigure(1, weight=1)
-        form_frame.grid_rowconfigure(0, weight=1)
-
-        form_title = ctk.CTkLabel(form_frame, text="Add Welding Entry", font=ctk.CTkFont(size=14, weight="bold"))
-        form_title.grid(row=0, column=0, columnspan=3, pady=10, sticky="ew")
-
-        # Two-column grid for fields
-        self.fields = {}
-        field_cfg = [
-            ("job_id", "Job ID:"), ("contract_number", "Contract No."), ("contract_title", "Contract Title:"), ("report_number", "Report No.:"), ("po_wo_number", "PO / WO No.:"), ("client_wps_number", "Client WPS No.:"), ("project_title_wellID", "Project Title / Well ID:"), ("drawing_no", "Drawing/ISO No.:"), ("line_no", "Line No.:"), ("site_name", "Site Name:"), ("job_desc", "Job description:"), ("location", "Location:"),("weld_id", "Weld ID:"), ("kp_sec", "KP Sec:"), ("wps_no", "WPS No:"),
-            ("material_gr", "Material Gr:"), ("heat_no", "Heat No:"), ("size", "Size(Inches):"), ("thk", "Thk(mm):"),
-            ("weld_side", "Weld Side:"), ("root", "Root:"), ("material_comb", "Mtrl. Comb:"), ("pipe_no", "Pipe No:"),
-            ("pipe_length", "Pipe length(mtrs):"), ("welder_name", "Welder Name:"), ("material", "Material:"),
-            ("weld_type", "Weld Type:"), ("description", "Description:"), ("date", "Date:"),
-        ]
-
-        rows = (len(field_cfg) + 1) // 2
-        for idx, (fid, label_txt) in enumerate(field_cfg):
-            row = idx // 2 + 1  # Start after title
-            col = (idx % 2) * 3  # Label | Entry | Mic
-
-            # Label
-            lbl = ctk.CTkLabel(form_frame, text=label_txt, anchor="w")
-            lbl.grid(row=row, column=col, padx=10, pady=5, sticky="w")
-
-            # Entry/Text
-            if fid == "description":
-                entry = ctk.CTkTextbox(form_frame, height=80, corner_radius=8)
-            elif fid == "date":
-                entry = ctk.CTkEntry(form_frame, width=200)
-                entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
-            else:
-                entry = ctk.CTkEntry(form_frame, width=200)
-            entry.grid(row=row, column=col + 1, padx=10, pady=5, sticky="ew")
-
-            # Mic button
-            mic = ctk.CTkButton(
-                form_frame, text="🎤", width=40, height=30, font=ctk.CTkFont(size=14),
-                command=lambda f=fid: self.record_voice(f), corner_radius=20
-            )
-            mic.grid(row=row, column=col + 2, padx=5, pady=5)
-
-            self.fields[fid] = {"label": lbl, "entry": entry, "mic": mic}
-
-        # Form buttons - use grid
-        btn_fr = ctk.CTkFrame(form_frame)
-        btn_fr.grid(row=rows + 1, column=0, columnspan=3, pady=15, sticky="ew")
-        btn_fr.grid_columnconfigure(0, weight=1)
-        btn_fr.grid_columnconfigure(1, weight=1)
-
-        self.add_btn = ctk.CTkButton(btn_fr, text="Add Entry", command=self.add_entry)
-        self.add_btn.grid(row=0, column=0, padx=5, sticky="ew")
-
-        self.clear_btn = ctk.CTkButton(btn_fr, text="Clear Form", fg_color="gray", command=self.clear_form)
-        self.clear_btn.grid(row=0, column=1, padx=5, sticky="ew")
-
-        # Status label - use grid
-        self.status_label = ctk.CTkLabel(form_frame, text="")
-        self.status_label.grid(row=rows + 2, column=0, columnspan=3, pady=5, sticky="ew")
-
-        # ---------- RIGHT: RECORDS ---------------------------------------
-        rec_frame = ctk.CTkFrame(scrollable, corner_radius=10)
-        rec_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
-
-        rec_title = ctk.CTkLabel(rec_frame, text="Records", font=ctk.CTkFont(size=14, weight="bold"))
-        rec_title.pack(pady=10)
-
-        # Export button
-        self.export_btn = ctk.CTkButton(rec_frame, text="Submit", command=self.export_excel)
-        self.export_btn.pack(pady=5, fill="x")
-
-        # Treeview in a frame
-        tree_fr = ctk.CTkFrame(rec_frame)
-        tree_fr.pack(fill="both", expand=True, pady=5)
-
-        self.tree = ttk.Treeview(
-            tree_fr, columns=("Job ID", "Welder", "Material", "Type", "Date", "Actions"), show="headings", height=15
-        )
-        for col in self.tree["columns"]:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=120)
-
-        v_scroll = ttk.Scrollbar(tree_fr, orient="vertical", command=self.tree.yview)
-        h_scroll = ttk.Scrollbar(tree_fr, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
-
-        self.tree.pack(side="left", fill="both", expand=True)
-        v_scroll.pack(side="right", fill="y")
-        h_scroll.pack(side="bottom", fill="x")
-
-        self.tree.bind("<Double-1>", self.delete_record)
-
-        self.refresh_table()
-
-    def toggle_theme(self):
-        mode = "dark" if self.theme_switch.get() == "on" else "light"
-        ctk.set_appearance_mode(mode)
-
-    def change_language(self, value_or_event=None):
-        # CTkComboBox passes a string (the selected value).
-        # If called via an event (unlikely here), fall back to lang_var.
-        if isinstance(value_or_event, str):
-            sel = value_or_event
-        else:
-            sel = self.lang_var.get()
-
-        print(f"[DEBUG] change_language called, selected={sel}")
-        self.current_lang = "ar" if sel == "العربية" else "en"
-        self.update_language()
-
+    # Update language (update labels)
     def update_language(self):
         t = self.translations[self.current_lang]
-        self.title_label.configure(text=t["title"])
-        # Update form/rec titles (assuming refs; in full impl, store them as self.form_title = form_title)
-        # For now, hardcode or loop; here we skip dynamic title update for simplicity
-        for fid in self.fields:
-            self.fields[fid]["label"].configure(text=t[fid])
-        self.add_btn.configure(text=t["add_entry"])
-        self.clear_btn.configure(text=t["clear_form"])
-        self.export_btn.configure(text=t["download_excel"])
-        self.status_label.configure(text="")
+        # For simplicity, UI labels would need to be updated dynamically in a full implementation
+        pass
+
+    # Load saved data to UI
+    def load_to_ui(self):
+        # Load header
+        for key, value in self.header_data.items():
+            if key in self.header_entries:
+                self.header_entries[key].delete(0, "end")
+                self.header_entries[key].insert(0, value)
+
+        # Load table
+        for i, record in enumerate(self.records[:10]):
+            row = i + 1
+            for field, value in record.items():
+                if field in self.table_entries[row]:
+                    self.table_entries[row][field].delete(0, "end")
+                    self.table_entries[row][field].insert(0, value)
+
+        # Load signatures
+        for k, v in self.signature_entries.items():
+            v.delete(0, "end")
+            v.insert(0, self.header_data.get(k, ""))
+
+    # Save UI to data
+    def save_from_ui(self):
+        # Header
+        for key, entry in self.header_entries.items():
+            self.header_data[key] = entry.get().strip()
+
+        # Table
+        self.records = []
+        for row in range(1, 11):
+            row_data = {}
+            for field, entry in self.table_entries[row].items():
+                row_data[field] = entry.get().strip()
+            if any(row_data.values()):  # If row not empty
+                self.records.append(row_data)
+
+        # Signatures
+        for key, entry in self.signature_entries.items():
+            self.header_data[key] = entry.get().strip()
+
+        self.save_data()
+
+    def clear_form(self):
+        for entry in self.header_entries.values():
+            entry.delete(0, "end")
+        self.header_entries["date"].insert(0, datetime.now().strftime("%Y-%m-%d"))
+        for row_entries in self.table_entries.values():
+            for entry in row_entries.values():
+                entry.delete(0, "end")
+        for entry in self.signature_entries.values():
+            entry.delete(0, "end")
+        for key in self.signature_entries:
+            if "_date" in key:
+                entry = self.signature_entries[key]
+                entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        # Re-enable mics if cleared
+        for field_id in list(self.mic_buttons.keys()):
+            self._clear_field(field_id)
 
     def record_voice(self, field_id):
-        """
-        Speak the question (and show it in UI) then start recording.
-        Re-inits TTS engine each time to fix 'silent after first call' bug.
-        """
-        print(f"[DEBUG] record_voice called for field: {field_id}")
-        print(f"[DEBUG] is_recording flag: {self.is_recording}")
-        if self.is_recording:
-            print("[DEBUG] Recording already in progress, exiting")
-            return
-        if not self.whisper_model:
-            print("[DEBUG] No Whisper model loaded")
-            messagebox.showwarning(
-                "Warning",
-                "Whisper model not loaded. Install with: pip install openai-whisper",
-            )
-            return
-        # Build language-specific question text
-        field_label_text = self.fields[field_id]["label"].cget("text")
-        question_en = f"What is your {field_label_text.replace(':', '').lower()}?"
-        question_ar = f"ما هو {field_label_text.replace(':', '')}؟"
-        question = question_ar if self.current_lang == "ar" else question_en
-        print(f"[DEBUG] Question to speak: '{question}'")
-        # Show the question in the status label immediately and force UI refresh
+        """Kick off TTS prompt then start background recording/transcription."""
+        # Build human question using existing helper (get_field_label)
+        try:
+            field_label_text = self.get_field_label(field_id) or field_id
+        except Exception:
+            field_label_text = field_id
+
+        if self.current_lang == "ar":
+            question = f"ما هو {field_label_text.replace(':', '')}؟"
+        else:
+            question = f"What is your {field_label_text.replace(':', '').lower()}?"
+
+        # Show question to user
         try:
             self.status_label.configure(text=question)
             self.root.update_idletasks()
-            print("[DEBUG] UI updated with question")
-        except Exception as e:
-            print(f"[DEBUG] UI update failed: {e}")
-        # Speak synchronously (ensures TTS finishes before recording starts)
+        except Exception:
+            pass
+
+        # Speak synchronously so TTS finishes before recording
         try:
             self.speak_sync(question)
         except Exception as e:
-            print(f"[DEBUG] speak_sync failed: {e}")
-        # Longer pause so TTS hardware finishes fully
-        print("[DEBUG] Sleeping 0.2s after TTS")
-        time.sleep(0.2)
-        # Update status to recording then start recording in background thread
-        t = self.translations[self.current_lang]
-        try:
-            self.status_label.configure(text=t["recording"])
-            self.root.update_idletasks()
-            print("[DEBUG] UI updated to recording status")
-        except Exception as e:
-            print(f"[DEBUG] Status update failed: {e}")
-        # Start recording in background thread
-        print("[DEBUG] Starting recording thread")
-        threading.Thread(
-            target=self._record_audio, args=(field_id,), daemon=True
-        ).start()
+            print("[record_voice] speak error:", e)
 
-    def _record_audio(self, field_id):
-        """Record audio to WAV file for ~3 seconds, then transcribe with Whisper."""
-        print(f"[DEBUG] _record_audio started for field: {field_id}")
-        print(f"[DEBUG] Setting is_recording to True")
+        # small pause
+        time.sleep(0.15)
+
+        # status update
+        try:
+            self.status_label.configure(text=self.translations[self.current_lang].get("recording", "Recording..."))
+            self.root.update_idletasks()
+        except Exception:
+            pass
+
+        # start background recording/transcription
+        threading.Thread(target=self._record_audio, args=(field_id,), daemon=True).start()
+
+    def _record_audio(self, field_id, timeout_seconds=4.5):
+        """Record audio to a temp wav, transcribe (if model available), insert into the matching entry,
+        and then start confirmation."""
         if self.is_recording:
-            print("[DEBUG] Re-entry detected, exiting")
             return
         self.is_recording = True
-        audio_file = None
-        text_output = ""
         audio = None
         stream = None
-        clean_text = ""
+        tmp_path = None
+        recognized_text = ""
         try:
-            print("[DEBUG] Initializing PyAudio")
             audio = pyaudio.PyAudio()
-            # Create temp WAV file
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                audio_file = temp_file.name
-            # Open stream
-            print("[DEBUG] Opening audio stream")
-            stream = audio.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=16000,
-                input=True,
-                frames_per_buffer=4000,
-            )
-            # Record to file for 3s
-            print("[DEBUG] Starting stream and recording loop (3s)")
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as t:
+                tmp_path = t.name
+
+            stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
             frames = []
-            stream.start_stream()
             start = time.time()
-            timeout_seconds = 5.0
             while time.time() - start < timeout_seconds:
                 try:
                     data = stream.read(4000, exception_on_overflow=False)
                     frames.append(data)
                 except Exception as e:
-                    print(f"[DEBUG] Audio read error: {e}")
+                    # keep going if occasional read fails
+                    print("[_record_audio] read error:", e)
                     continue
-            # Save to WAV
-            wf = wave.open(audio_file, "wb")
+
+            wf = wave.open(tmp_path, "wb")
             wf.setnchannels(1)
             wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
             wf.setframerate(16000)
             wf.writeframes(b"".join(frames))
             wf.close()
-            # Transcribe with Whisper
-            print("[DEBUG] Transcribing with Whisper")
+
+            # transcribe if whisper loaded
             if self.whisper_model:
-                # Auto-detect language or specify
-                lang_code = "ar" if self.current_lang == "ar" else "en"
-                result = self.whisper_model.transcribe(audio_file, language=lang_code)
-                text_output = result["text"].strip()
-                print(f"[DEBUG] Raw Whisper transcription: '{text_output}'")
+                try:
+                    lang_code = "ar" if self.current_lang == "ar" else "en"
+                    result = self.whisper_model.transcribe(tmp_path, language=lang_code)
+                    recognized_text = result.get("text", "").strip()
+                except Exception as e:
+                    print("[_record_audio] whisper error:", e)
+                    recognized_text = ""
             else:
-                print("[DEBUG] No Whisper model available")
-                text_output = ""
-            # Clean the text output
-            clean_text = re.sub(r"(?<!\d)\.(?!\d)", "", text_output)  # remove dots not between numbers
-            clean_text = re.sub(r"[^\w.\s-]", "", clean_text)         # keep hyphens and dots
-            clean_text = re.sub(r"\s+", " ", clean_text).strip()  # normalize spaces
-            clean_text = re.sub(r'\bdash\b', '-', clean_text, flags=re.IGNORECASE)
-            
-            print(f"[DEBUG] Cleaned transcription: '{clean_text}'")
+                # whisper unavailable -> inform user (no decision)
+                recognized_text = ""
+                print("[_record_audio] Warning: Whisper model not loaded; transcription unavailable.")
+
+            # clean text: keep hyphens, keep digits' decimals, convert the word 'dash' to '-'
+            if recognized_text:
+                clean_text = re.sub(r"(?<!\d)\.(?!\d)", "", recognized_text)   # remove stray dots not part of decimals
+                clean_text = re.sub(r"[^\w.\s-]", "", clean_text)              # allow letters, digits, dots, whitespace and hyphen
+                clean_text = re.sub(r"\s+", " ", clean_text).strip()
+                clean_text = re.sub(r'\bdash\b', '-', clean_text, flags=re.IGNORECASE)
+            else:
+                clean_text = ""
+
+            # insert the tentative transcription into the UI (main thread)
+            if clean_text:
+                self.root.after(0, lambda fid=field_id, txt=clean_text: self._insert_text_to_field(fid, txt))
+                # start confirmation in background
+                threading.Thread(target=lambda: self._voice_confirm(field_id, clean_text), daemon=True).start()
+            else:
+                # No transcription available: fallback to GUI notice
+                self.root.after(0, lambda: messagebox.showinfo("Info", "No speech recognized / speech-to-text unavailable"))
+
         except Exception as e:
-            print(f"[DEBUG] Recording/Transcription Error: {e}")
+            print("[_record_audio] error:", e)
         finally:
-            # Cleanup
-            print("[DEBUG] Cleaning up audio resources")
             try:
                 if stream:
                     stream.stop_stream()
                     stream.close()
                 if audio:
                     audio.terminate()
-            except Exception as e:
-                print(f"[DEBUG] Cleanup error: {e}")
-            # Delete temp file
-            if audio_file and os.path.exists(audio_file):
-                os.unlink(audio_file)
-            # Reset status and flag
-            try:
-                t = self.translations[self.current_lang]
-                self.root.after(
-                    0, lambda: self.status_label.configure(text="")
-                )
-                print("[DEBUG] Scheduled status reset")
-            except Exception as e:
-                print(f"[DEBUG] Status reset error: {e}")
+            except Exception:
+                pass
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
             self.is_recording = False
-        print(f"[DEBUG] Final text_output: '{text_output}'")
-        # Convert number words to digits if applicable
-        converted = self.words_to_digits(clean_text, self.current_lang)
-        if converted:
-            clean_text = converted
-            print(f"[DEBUG] Converted number: '{clean_text}'")
-        else:
-            print(f"[DEBUG] No number conversion applied")
-        if clean_text:
-            # Temporarily insert the text into the field on main thread
-            self.root.after(0, lambda fid=field_id, txt=clean_text: self._insert_text_to_field(fid, txt))
-            # Then proceed to voice confirmation in background thread
             try:
-                threading.Thread(
-                    target=lambda: self._voice_confirm(field_id, clean_text), daemon=True
-                ).start()
-                print("[DEBUG] Scheduled insert and confirm")
-            except Exception as e:
-                print(f"[DEBUG] Scheduling error: {e}")
-            print(f"[DEBUG] Recognized for {field_id}: {clean_text}")
-        else:
-            print("[DEBUG] No speech detected or recognition returned empty text")
+                self.root.after(0, lambda: self.status_label.configure(text=""))
+            except Exception:
+                pass
+    
+    def get_entry_by_id(self, field_id):
+        if field_id.startswith("header_"):
+            return self.header_entries.get(field_id[7:], None)
+        elif field_id.startswith("table_row_"):
+            # expected format: "table_row_{row}_{field_name...}"
+            parts = field_id.split("_")
+            if len(parts) >= 4 and parts[:2] == ['table', 'row']:
+                try:
+                    row = int(parts[2])
+                except Exception:
+                    return None
+                field = "_".join(parts[3:])
+                return self.table_entries.get(row, {}).get(field, None)
+        return None
 
     def _voice_confirm(self, field_id, recognized_text, max_retries=1):
-        """
-        Voice-based confirmation after transcription with robust handling:
-        - waits briefly after TTS so audio device frees
-        - warms up and discards first frames (often silent)
-        - retries listening a few times on empty/unrecognized responses
-        - falls back to a messagebox if voice confirmation repeatedly fails
-        """
-        print(f"[DEBUG] Voice confirm started for {field_id} with text: {recognized_text}")
-
-        # speak the confirmation synchronously so TTS output finishes before we record
-        confirm_text = f"You said {recognized_text}. Do you confirm?"
+        """Ask for voice confirmation (yes/no). On yes -> lock field (replace mic with label).
+        On no -> clear and re-enable mic. falls back to GUI confirm if voice fails."""
+        # speak confirmation
         try:
-            self.speak_sync(confirm_text)
+            if self.current_lang == "ar":
+                confirm_prompt = self.translations["ar"].get("confirm_prompt", "قلت {}. هل تؤكد؟").format(recognized_text)
+            else:
+                confirm_prompt = self.translations["en"].get("confirm_prompt", "You said {}. Do you confirm?").format(recognized_text)
+            self.speak_sync(confirm_prompt)
         except Exception as e:
-            print(f"[DEBUG] speak_sync failed: {e}")
+            print("[_voice_confirm] TTS error:", e)
 
-        # tiny pause to ensure audio device is free after TTS (important on some systems)
-        time.sleep(0.25)
+        time.sleep(0.2)
 
-        yes_keywords_en = {"yes", "yeah", "yup", "yep", "confirm", "correct"}
-        no_keywords_en = {"no", "nah", "nope", "incorrect", "wrong"}
-        yes_keywords_ar = {"نعم", "ايوه", "ايه", "نَعَم"}
-        no_keywords_ar = {"لا", "لأ", "لاا"}
+        yes_set_en = {"yes", "yeah", "yup", "yep", "confirm", "correct"}
+        no_set_en = {"no", "nah", "nope", "incorrect", "wrong"}
+        yes_set_ar = {"نعم", "ايوه", "ايه", "نَعَم"}
+        no_set_ar = {"لا", "لأ", "لاا"}
 
         attempt = 0
         while attempt <= max_retries:
             attempt += 1
-            confirm_audio = None
+            # record short reply
             audio = None
             stream = None
+            tmp = None
+            response_text = ""
             try:
-                # create temp file
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                    confirm_audio = tmp.name
-
                 audio = pyaudio.PyAudio()
-
-                # open stream
-                stream = audio.open(format=pyaudio.paInt16,
-                                    channels=1,
-                                    rate=16000,
-                                    input=True,
-                                    frames_per_buffer=4000)
-
-                # warm-up: read & discard a short amount to avoid initial silence
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as t:
+                    tmp = t.name
+                stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
+                # warm-up
                 try:
-                    for _ in range(0, 2):
+                    for _ in range(2):
                         stream.read(4000, exception_on_overflow=False)
-                except Exception as e:
-                    # not critical, continue
-                    print(f"[DEBUG] warmup read error: {e}")
-
-                # record for a bit (2.5s) to capture reply
+                except Exception:
+                    pass
                 frames = []
-                record_seconds = 2.5
                 start = time.time()
-                while time.time() - start < record_seconds:
+                rec_secs = 2.5
+                while time.time() - start < rec_secs:
                     try:
                         data = stream.read(4000, exception_on_overflow=False)
                         frames.append(data)
-                    except Exception as e:
-                        print(f"[DEBUG] confirmation read error: {e}")
-                        # continue reading attempts until timeout
-                        continue
-
-                # save file
-                wf = wave.open(confirm_audio, "wb")
+                    except Exception:
+                        pass
+                wf = wave.open(tmp, "wb")
                 wf.setnchannels(1)
                 wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
                 wf.setframerate(16000)
                 wf.writeframes(b"".join(frames))
                 wf.close()
-
                 # transcribe
-                lang_code = "ar" if self.current_lang == "ar" else "en"
-                if not self.whisper_model:
-                    print("[DEBUG] No Whisper model for confirmation")
-                    response_text = ""
+                if self.whisper_model:
+                    try:
+                        lang_code = "ar" if self.current_lang == "ar" else "en"
+                        res = self.whisper_model.transcribe(tmp, language=lang_code)
+                        response_text = res.get("text", "").strip().lower()
+                    except Exception as e:
+                        print("[_voice_confirm] whisper confirm err:", e)
+                        response_text = ""
                 else:
-                    result = self.whisper_model.transcribe(confirm_audio, language=lang_code)
-                    response_text = result.get("text", "").strip().lower()
+                    response_text = ""
+                if tmp and os.path.exists(tmp):
+                    try:
+                        os.unlink(tmp)
+                    except Exception:
+                        pass
 
-                print(f"[DEBUG] Voice response detected: '{response_text}' (attempt {attempt})")
-
-                # clean temp audio
-                try:
-                    if confirm_audio and os.path.exists(confirm_audio):
-                        os.unlink(confirm_audio)
-                        confirm_audio = None
-                except Exception:
-                    pass
-
-                # analyze response
                 if not response_text:
-                    # nothing recognized — retry (with a short spoken prompt)
                     if attempt <= max_retries:
-                        self.speak_async("I didn't hear you. Please say yes or no.")
+                        self.speak_async(self.translations[self.current_lang].get("no_hear", "I didn't hear you. Please say yes or no."))
                         time.sleep(0.15)
                         continue
                     else:
-                        print("[DEBUG] No speech after retries, falling back to GUI confirm")
+                        # fallback to GUI confirm
                         break
 
-                # check for yes/no in either language
-                # Arabic responses might include Arabic words; check both sets
+                # tokenise (support Arabic unicode range too)
                 tokens = set(re.split(r"\s+|[^\w\u0600-\u06FF]+", response_text))
-                if (tokens & yes_keywords_en) or (tokens & yes_keywords_ar):
-                    print("[DEBUG] User confirmed by voice (YES)")
-                    # Lock the field (text already inserted)
-                    self.root.after(0, lambda: self._lock_field(field_id))
+                if (tokens & yes_set_en) or (tokens & yes_set_ar):
+                    # confirmed -> lock field (main thread)
+                    self.root.after(0, lambda fid=field_id: self._lock_field(fid))
                     self.root.after(0, lambda: self.status_label.configure(text="Confirmed and locked!"))
                     self.root.after(2000, lambda: self.status_label.configure(text=""))
                     return
-
-                if (tokens & no_keywords_en) or (tokens & no_keywords_ar):
-                    print("[DEBUG] User rejected by voice (NO)")
-                    # speak a retry prompt and clear field for re-recording
-                    self.speak_async("Okay, please say it again.")
-                    self.root.after(0, lambda: self._clear_field(field_id))
+                if (tokens & no_set_en) or (tokens & no_set_ar):
+                    # rejected -> clear and recreate mic
+                    self.speak_async(self.translations[self.current_lang].get("okay_retry", "Okay, please say it again."))
+                    self.root.after(0, lambda fid=field_id: self._clear_field(fid))
                     self.root.after(0, lambda: self.status_label.configure(text="Cleared - please re-record"))
                     self.root.after(2000, lambda: self.status_label.configure(text=""))
                     return
 
-                # unrecognized but not empty => ask to repeat
+                # else unrecognized -> retry if attempts left
                 if attempt <= max_retries:
-                    self.speak_async("I didn't catch that. Please say yes or no.")
+                    self.speak_async(self.translations[self.current_lang].get("no_catch", "I didn't catch that. Please say yes or no."))
                     time.sleep(0.15)
                     continue
                 else:
-                    print("[DEBUG] Unclear confirmation after retries, falling back")
                     break
 
             except Exception as e:
-                print(f"[DEBUG] Voice confirm error on attempt {attempt}: {e}")
-                # cleanup and possibly retry
+                print("[_voice_confirm] error:", e)
                 try:
                     if stream:
                         stream.stop_stream()
@@ -820,327 +925,229 @@ class WeldingShopApp:
                         audio.terminate()
                 except Exception:
                     pass
-                if confirm_audio and os.path.exists(confirm_audio):
-                    try:
-                        os.unlink(confirm_audio)
-                    except Exception:
-                        pass
 
-        # fallback to GUI confirm if voice attempts didn't reach a decision
+        # fallback GUI confirm (runs on main thread)
         try:
             t = self.translations[self.current_lang]
-            confirm_msg = t["confirm_text"].format(recognized_text)
+            confirm_msg = t.get("confirm_text", "Is this correct: '{}'?").format(recognized_text)
             if messagebox.askyesno("Confirm Input", confirm_msg):
-                self.root.after(0, lambda: self._lock_field(field_id))
-                self.root.after(0, lambda: self.status_label.configure(text="Confirmed and locked!"))
+                self._lock_field(field_id)
+                self.status_label.configure(text="Confirmed and locked!")
                 self.root.after(2000, lambda: self.status_label.configure(text=""))
             else:
-                # user chose No via GUI fallback
-                self.root.after(0, lambda: self._clear_field(field_id))
-                self.root.after(0, lambda: self.status_label.configure(text="Cleared - please re-record"))
+                self._clear_field(field_id)
+                self.status_label.configure(text="Cleared - please re-record")
                 self.root.after(2000, lambda: self.status_label.configure(text=""))
         except Exception as e:
-            print(f"[DEBUG] Fallback GUI confirm error: {e}")
+            print("[_voice_confirm] fallback GUI error:", e)
 
-    def _insert_field_value(self, field_id, value):
-        """Directly insert text into a field without popup confirmation."""
-        pass  # Deprecated - use _insert_text_to_field and _lock_field instead
+    def _insert_text_to_field(self, field_id, value):
+        entry = self.get_entry_by_id(field_id)
+        if entry:
+            entry.delete(0, "end")
+            entry.insert(0, value)
 
-    def _insert_and_confirm(self, field_id, text):
-        """Insert transcribed text, ask for confirmation, and lock if confirmed."""
-        pass  # Deprecated
+    def _lock_field(self, field_id):
+        """Lock the field (make readonly/disabled) and remove its mic button."""
+        entry_widget = self.get_entry_by_id(field_id)
+        if entry_widget:
+            try:
+                entry_widget.configure(state="readonly")
+            except Exception:
+                try:
+                    entry_widget.configure(state="disabled")
+                except Exception:
+                    pass
 
-    def _insert_text(self, field_id, text):
-        """Insert transcribed text into field (deprecated, use _insert_text_to_field)"""
-        pass  # Not used anymore
+        # destroy mic if exists
+        mic = self.mic_buttons.get(field_id)
+        if mic:
+            try:
+                mic.destroy()
+            except Exception:
+                pass
+            # remove from registry
+            try:
+                del self.mic_buttons[field_id]
+            except KeyError:
+                pass
 
-    def add_entry(self):
-        """Add new welding entry"""
-        t = self.translations[self.current_lang]
+        print(f"[DEBUG] Locked and removed mic for '{field_id}'")
 
-        # Get values
-        job_id = self.fields["job_id"]["entry"].get().strip()
-        contract_number = self.fields["contract_number"]["entry"].get().strip()
-        contract_title = self.fields["contract_title"]["entry"].get().strip()
-        report_number = self.fields["report_number"]["entry"].get().strip()
-        po_wo_number = self.fields["po_wo_number"]["entry"].get().strip()
-        client_wps_number = self.fields["client_wps_number"]["entry"].get().strip()
-        project_title_wellID = self.fields["project_title_wellID"]["entry"].get().strip()
-        drawing_no = self.fields["drawing_no"]["entry"].get().strip()
-        line_no = self.fields["line_no"]["entry"].get().strip()
-        site_name = self.fields["site_name"]["entry"].get().strip()
-        job_desc = self.fields["job_desc"]["entry"].get().strip()
-        location = self.fields["location"]["entry"].get().strip()
-        weld_id = self.fields["weld_id"]["entry"].get().strip()
-        kp_sec = self.fields["kp_sec"]["entry"].get().strip()
-        wps_no = self.fields["wps_no"]["entry"].get().strip()
-        material_gr = self.fields["material_gr"]["entry"].get().strip()
-        heat_no = self.fields["heat_no"]["entry"].get().strip()
-        size = self.fields["size"]["entry"].get().strip()
-        thk = self.fields["thk"]["entry"].get().strip()
-        weld_side = self.fields["weld_side"]["entry"].get().strip()
-        root = self.fields["root"]["entry"].get().strip()
-        material_comb = self.fields["material_comb"]["entry"].get().strip()
-        pipe_no = self.fields["pipe_no"]["entry"].get().strip()
-        pipe_length = self.fields["pipe_length"]["entry"].get().strip()
-        welder_name = self.fields["welder_name"]["entry"].get().strip()
-        material = self.fields["material"]["entry"].get().strip()
-        weld_type = self.fields["weld_type"]["entry"].get().strip()
-        description = self.fields["description"]["entry"].get("1.0", "end").strip()
-        date = self.fields["date"]["entry"].get().strip()
-
-        # Validation
-        if not job_id or not welder_name:
-            messagebox.showerror("Error", t["error_fill"])
+    def _clear_field(self, field_id):
+        """Clear entry and recreate mic button."""
+        entry = self.get_entry_by_id(field_id)
+        if not entry:
             return
-        # Create record
-        record = {
-            "id": datetime.now().timestamp(),
-            "job_id": job_id,
-            "contract_number": contract_number,
-            "contract_title": contract_title,
-            "report_number": report_number,
-            "po_wo_number": po_wo_number,
-            "client_wps_number": client_wps_number,
-            "project_title_wellID": project_title_wellID,
-            "drawing_no": drawing_no,
-            "line_no": line_no,
-            "site_name": site_name,
-            "job_desc": job_desc,
-            "location": location,
-            "weld_id": weld_id,
-            "kp_sec": kp_sec,
-            "wps_no": wps_no,
-            "material_gr": material_gr,
-            "heat_no": heat_no,
-            "size": size,
-            "thk": thk,
-            "weld_side": weld_side,
-            "root": root,
-            "material_comb": material_comb,
-            "pipe_no": pipe_no,
-            "pipe_length": pipe_length,
-            "welder_name": welder_name,
-            "material": material,
-            "weld_type": weld_type,
-            "description": description,
-            "date": date,
-        }
 
-        self.records.insert(0, record)
-        self.save_data()
-        self.refresh_table()
-        self.clear_form()
-        self.status_label.configure(text=t["success_add"])
-        self.root.after(3000, lambda: self.status_label.configure(text=""))
+        # Clear entry
+        try:
+            entry.configure(state="normal")
+            entry.delete(0, "end")
+        except Exception:
+            try:
+                entry.configure(state="normal")
+                entry.delete("1.0", "end")
+            except Exception:
+                pass
 
-    def clear_form(self):
-        """Clear all form fields"""
-        for field_id in [
-            "job_id", "contract_number", "contract_title", "report_number", "po_wo_number",
-            "client_wps_number", "project_title_wellID", "drawing_no", "line_no", "site_name",
-            "job_desc", "location", "weld_id", "kp_sec", "wps_no", "material_gr", "heat_no",
-            "size", "thk", "weld_side", "root", "material_comb", "pipe_no", "pipe_length",
-            "welder_name", "material", "weld_type", "description", "date",
-        ]:
-            self._clear_field(field_id)
-        # Reset date
-        self.fields["date"]["entry"].insert(0, datetime.now().strftime("%Y-%m-%d"))
-
-    def refresh_table(self):
-        """Refresh the records table"""
-        # Clear existing
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        # Add records
-        for record in self.records:
-            self.tree.insert(
-                "",
-                tk.END,
-                values=(
-                    record["job_id"],
-                    record["welder_name"],
-                    record["material"],
-                    record["weld_type"],
-                    record["date"],
-                    "Double-click to delete",
-                ),
-            )
-
-    def delete_record(self, event):
-        """Delete selected record"""
-        selection = self.tree.selection()
-        if not selection:
-            return
-        if messagebox.askyesno("Confirm", "Delete this record?"):
-            item = self.tree.item(selection[0])
-            job_id = item["values"][0]
-            self.records = [r for r in self.records if r["job_id"] != job_id]
-            self.save_data()
-            self.refresh_table()
+        # Recreate mic in container
+        container = self.entry_frames.get(field_id)
+        if container:
+            # destroy old mic if any
+            old_mic = self.mic_buttons.get(field_id)
+            if old_mic:
+                try:
+                    old_mic.destroy()
+                except Exception:
+                    pass
+                try:
+                    del self.mic_buttons[field_id]
+                except KeyError:
+                    pass
+            # create new mic button and store it
+            mic = ctk.CTkButton(container, text="🎤", width=30, height=25, corner_radius=8, command=lambda f=field_id: self.record_voice(f))
+            mic.grid(row=0, column=1, sticky="e", padx=(2, 2), pady=2)
+            self.mic_buttons[field_id] = mic
 
     def export_excel(self):
-        """Export data into the given Excel template preserving all formatting and logo."""
-        import shutil, tempfile, os
-        from openpyxl import load_workbook
-        from openpyxl.drawing.image import Image
-        from openpyxl.styles import Alignment
-        from tkinter import filedialog, messagebox
-
-        if not self.records:
-            messagebox.showwarning("Warning", "No records to export")
-            return
-
-        t = self.translations[self.current_lang]
-
-        # filename = filedialog.asksaveasfilename(
-        #     defaultextension=".xlsx",                 #for downloading window
-        #     filetypes=[("Excel files", "*.xlsx")],
-        #     initialfile=f"ATNM_Welding_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-        # )
-
-        filename = os.path.join(
-            os.getcwd(), f"ATNM_Welding_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        )
-        
-        if not filename:
-            return
-
+        self.save_from_ui()  # Save current UI to data
         try:
-            template_path = "ATNM-ODC-MF-014-Daily Welding Production - Visual Inspection Report-Rev 01.xlsx"
-            if not os.path.exists(template_path):
-                messagebox.showerror("Error", f"Template not found:\n{template_path}")
-                return
-
-            shutil.copyfile(template_path, filename)
-
-            # ✅ Try to extract and reinsert the logo safely
-            temp_logo_path = None
-            try:
-                temp_wb = load_workbook(template_path)
-                ws_t = temp_wb.active
-                if ws_t._images:
-                    logo_obj = ws_t._images[0]
-                    temp_logo_path = tempfile.mktemp(suffix=".png")
-                    logo_obj.image.save(temp_logo_path)
-                temp_wb.close()
-            except Exception as e:
-                print(f"⚠️ Logo extraction failed: {e}")
-
-            wb = load_workbook(filename)
+            wb = Workbook()
             ws = wb.active
+            ws.title = "Daily Welding Report"
 
-            # Helper to safely write while preserving labels
-            def write_with_label(cell_ref, value):
-                if not value:
-                    return
-                cell = ws[cell_ref]
-                for merged in ws.merged_cells.ranges:
-                    if cell.coordinate in merged:
-                        cell = ws.cell(merged.min_row, merged.min_col)
-                        break
+            # Add styles
+            header_font = Font(bold=True)
+            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
 
-                existing = str(cell.value).strip() if cell.value else ""
-                if ":" in existing:
-                    prefix = existing.split(":")[0].strip() + ":"
-                    cell.value = f"{prefix} {value}"
-                else:
-                    cell.value = value
-                cell.alignment = Alignment(vertical="center")
+            t = self.translations[self.current_lang]
 
-            # === HEADER MAPPING based on your layout ===
-            header_map = {
-                "contract_number": "E5",
-                "contract_title": "K5",
-                "report_number": "Q5",
-                "activity_date": "U5",
-                "po_wo_number": "E6",
-                "client_wps_number": "K6",
-                "project_title_wellID": "Q6",
-                "drawing_no": "E7",
-                "line_no": "Q7",
-                "site_name": "U7",
-                "job_desc": "E8",
-                "location": "U8",
-                "date": "U5"
-            }
+            # Title
+            ws['A1'] = t["title"]
+            ws['A1'].font = Font(size=18, bold=True)
+            ws.merge_cells('A1:F1')
 
-            header_source = self.records[0]
-            for key, cell_ref in header_map.items():
-                if header_source.get(key):
-                    write_with_label(cell_ref, header_source[key])
+            # Form title
+            ws['A2'] = t["form_title"]
+            ws['A2'].font = Font(size=16, bold=True)
+            ws.merge_cells('A2:F2')
 
-            # === DATA TABLE SECTION ===
-            start_row = 11
-            row_gap = 2
+            # Header fields (approximate Excel positions)
+            row = 4
+            ws[f'A{row}'] = t["contract_number"]
+            ws[f'B{row}'] = self.header_data["contract_number"]
+            ws[f'G{row}'] = t["contract_title"]
+            ws[f'H{row}'] = self.header_data["contract_title"]
+            ws[f'M{row}'] = t["report_number"]
+            ws[f'N{row}'] = self.header_data["report_number"]
+            ws[f'S{row}'] = t["date"]
+            ws[f'T{row}'] = self.header_data["date"]
+            row += 1
 
-            def write_safe(cell_ref, value):
-                if not value or str(value).strip() == "":
-                    return
-                cell = ws[cell_ref]
-                for merged in ws.merged_cells.ranges:
-                    if cell.coordinate in merged:
-                        cell = ws.cell(merged.min_row, merged.min_col)
-                        break
-                cell.value = value
-                cell.alignment = Alignment(horizontal="center", vertical="center")
+            ws[f'A{row}'] = t["po_wo_number"]
+            ws[f'B{row}'] = self.header_data["po_wo_number"]
+            ws[f'G{row}'] = t["client_wps_number"]
+            ws[f'H{row}'] = self.header_data["client_wps_number"]
+            ws[f'M{row}'] = t["project_title_wellID"]
+            ws[f'N{row}'] = self.header_data["project_title_wellID"]
+            row += 1
 
-            for idx, record in enumerate(self.records, start=1):
-                row = start_row + (idx - 1) * row_gap
-                write_safe(f"B{row}", idx)
-                write_safe(f"C{row}", record.get("kp_sec"))
-                write_safe(f"D{row}", record.get("weld_id"))
-                write_safe(f"E{row}", record.get("wps_no"))
-                combo = f"{record.get('material_gr', '')} / {record.get('heat_no', '')}".strip(" / ")
-                write_safe(f"F{row}", combo)
-                write_safe(f"H{row}", record.get("size"))
-                write_safe(f"I{row}", record.get("thk"))
-                write_safe(f"J{row}", record.get("weld_side"))
-                write_safe(f"K{row}", record.get("root"))
-                write_safe(f"U{row}", record.get("material_comb"))
-                write_safe(f"V{row}", record.get("pipe_no"))
-                write_safe(f"W{row}", record.get("pipe_length"))
-                remarks = f"Welder: {record.get('welder_name','')} | Date: {record.get('date','')}"
-                write_safe(f"X{row}", remarks)
+            ws[f'A{row}'] = t["drawing_no"]
+            ws[f'B{row}'] = self.header_data["drawing_no"]
+            ws[f'G{row}'] = t["line_no"]
+            ws[f'H{row}'] = self.header_data["line_no"]
+            ws[f'M{row}'] = t["site_name"]
+            ws[f'N{row}'] = self.header_data["site_name"]
+            row += 1
 
-            # ✅ Reinsert logo if extracted
-            if temp_logo_path and os.path.exists(temp_logo_path):
-                try:
-                    img = Image(temp_logo_path)
-                    ws.add_image(img, "B1")
-                    print("✅ Logo restored successfully.")
-                except Exception as e:
-                    print(f"⚠️ Failed to reinsert logo: {e}")
+            ws[f'A{row}'] = t["job_desc"]
+            ws[f'B{row}'] = self.header_data["job_desc"]
+            ws.merge_cells(f'B{row}:C{row}')
+            ws[f'D{row}'] = t["location"]
+            ws[f'E{row}'] = self.header_data["location"]
+            ws.merge_cells(f'E{row}:F{row}')
+            row += 3
 
+            # Table headers
+            headers = list(t["table_headers"].values())
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=row, column=col, value=header)
+                cell.font = header_font
+                cell.border = thin_border
+
+            # Table data
+            for r, record in enumerate(self.records, row + 1):
+                for col, (field, value) in enumerate(record.items(), 1):
+                    cell = ws.cell(row=r, column=col, value=value)
+                    cell.border = thin_border
+
+            # Consumables
+            row += len(self.records) + 2
+            ws[f'A{row}'] = t["welding_consumable"]
+            ws[f'A{row}'].font = Font(bold=True)
+            row += 1
+            ws[f'A{row}'] = t["aws_classification"]
+            ws[f'B{row}'] = self.header_data["aws_classification"]
+            row += 1
+            ws[f'A{row}'] = t["electrode_dia"]
+            ws[f'B{row}'] = self.header_data["electrode_dia"]
+            row += 1
+            ws[f'A{row}'] = t["manufacturer_batch"]
+            ws[f'B{row}'] = self.header_data["manufacturer_batch"]
+
+            # Legends
+            row += 2
+            ws[f'A{row}'] = t["material_grade_legend"]
+            ws[f'A{row}'].font = Font(size=8)
+            row += 1
+            ws[f'A{row}'] = t["welding_process_legend"]
+            ws[f'A{row}'].font = Font(size=8)
+
+            # Signatures
+            row += 2
+            sig_row = row
+            sig_keys = ["permit_holder", "qci", "pdo", "data_entry"]
+            for i, key in enumerate(sig_keys):
+                col = i * 4 + 1
+                ws[f'{chr(64 + col)}{sig_row}'] = t[key]
+                ws[f'{chr(64 + col)}{sig_row}'].font = Font(bold=True)
+                ws[f'{chr(64 + col)}{sig_row + 1}'] = t["name"]
+                ws[f'{chr(64 + col + 1)}{sig_row + 1}'] = self.header_data[f"{key}_name"]
+                ws[f'{chr(64 + col)}{sig_row + 2}'] = t["signature"]
+                ws[f'{chr(64 + col + 1)}{sig_row + 2}'] = self.header_data[f"{key}_signature"]
+                ws[f'{chr(64 + col)}{sig_row + 3}'] = t["date"]
+                ws[f'{chr(64 + col + 1)}{sig_row + 3}'] = self.header_data[f"{key}_date"]
+
+            filename = f"welding_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             wb.save(filename)
-            wb.close()
-
-            # self.status_label.config(text=t["success_export"], fg="green")
-            # self.root.after(3000, lambda: self.status_label.config(text=""))
-            messagebox.showinfo("Success", f"Form saved successfully:\n{filename}")
-
+            messagebox.showinfo("Success", f"Report exported to {filename}")
         except Exception as e:
-            messagebox.showerror("Error", f"Export failed:\n{str(e)}")
-
-    def load_data(self):
-        """Load records from JSON file"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, "r", encoding="utf-8") as f:
-                    self.records = json.load(f)
-            except:
-                self.records = []
+            messagebox.showerror("Error", f"Export failed: {e}")
 
     def save_data(self):
-        """Save records to JSON file"""
+        data = {
+            "header": self.header_data,
+            "records": self.records,
+        }
         try:
             with open(self.data_file, "w", encoding="utf-8") as f:
-                json.dump(self.records, f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"Error saving data: {e}")
 
+    def load_data(self):
+        if os.path.exists(self.data_file):
+            try:
+                with open(self.data_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.header_data = data.get("header", self.header_data)
+                    self.records = data.get("records", [])
+            except:
+                pass
+
 
 if __name__ == "__main__":
-    root = ctk.CTk()  # Use CTk as root for full modern support
+    root = ctk.CTk()
     app = WeldingShopApp(root)
     root.mainloop()
