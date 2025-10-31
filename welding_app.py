@@ -374,64 +374,95 @@ class WeldingShopApp:
         main_scroll = ctk.CTkScrollableFrame(self.root, corner_radius=10)
         main_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Header frame
-        header_fr = ctk.CTkFrame(main_scroll, fg_color="transparent")
-        header_fr.pack(fill="x", pady=10)
-        
-        self.status_label = ctk.CTkLabel(header_fr, text="", width=300, anchor="e")
-        self.status_label.pack(side="right", padx=8, pady=8)
-
-        # Company title
-        title_lbl = ctk.CTkLabel(header_fr, text=self.translations[self.current_lang]["title"], font=ctk.CTkFont(size=18, weight="bold"))
-        title_lbl.pack(pady=5)
-
-        # Form title
-        form_lbl = ctk.CTkLabel(header_fr, text=self.translations[self.current_lang]["form_title"], font=ctk.CTkFont(size=16, weight="bold"))
-        form_lbl.pack(pady=5)
-
-        # Header fields grid (simulate Excel rows 5-8)
-        header_grid = ctk.CTkFrame(main_scroll, fg_color="transparent")
-        header_grid.pack(fill="x", pady=10)
-        for i in range(6):
-            header_grid.grid_columnconfigure(i, weight=1)
+        # Header main frame - transparent
+        header_main = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        header_main.pack(fill="x", pady=10)
 
         t = self.translations[self.current_lang]
 
-        # Row 1: Contract No., Contract Title, Report No.
-        ctk.CTkLabel(header_grid, text=t["contract_number"]).grid(row=0, column=0, sticky="w", padx=5, pady=2)
-        self.header_entries["contract_number"] = self.create_entry_with_mic(header_grid, "header_contract_number", row=0, col=1)
-        ctk.CTkLabel(header_grid, text=t["contract_title"]).grid(row=0, column=2, sticky="w", padx=5, pady=2)
-        self.header_entries["contract_title"] = self.create_entry_with_mic(header_grid, "header_contract_title", row=0, col=3)
-        ctk.CTkLabel(header_grid, text=t["report_number"]).grid(row=0, column=4, sticky="w", padx=5, pady=2)
-        self.header_entries["report_number"] = self.create_entry_with_mic(header_grid, "header_report_number", row=0, col=5)
+        # Logo left - fixed width
+        logo_fr = ctk.CTkFrame(header_main, fg_color="transparent", width=150)
+        logo_fr.pack(side="left", fill="y", padx=(0, 10))
+        logo_fr.grid_propagate(False)  # Fix width
+        try:
+            logo_img = ctk.CTkImage(light_image=Image.open("logo.png"), size=(120, 100))
+            logo_lbl = ctk.CTkLabel(logo_fr, image=logo_img, text="")
+            logo_lbl.pack(pady=10)
+        except Exception as e:
+            print(f"Logo load error: {e}")
+            logo_lbl = ctk.CTkLabel(logo_fr, text="LOGO", font=ctk.CTkFont(size=12, weight="bold"))
+            logo_lbl.pack(pady=10)
 
-        # Row 2: Activity Date
-        ctk.CTkLabel(header_grid, text=t["date"]).grid(row=1, column=0, sticky="w", padx=5, pady=2)
-        self.header_entries["date"] = ctk.CTkEntry(header_grid, width=150)
-        self.header_entries["date"].insert(0, self.header_data["date"])
-        self.header_entries["date"].grid(row=1, column=1, sticky="ew", padx=5, pady=2)
+        # Right side: Orange block for company name
+        orange_block = ctk.CTkFrame(header_main, fg_color="#FF8C00", height=60, corner_radius=0)
+        orange_block.pack(side="right", fill="x", expand=True)
+        orange_block.grid_propagate(False)  # Enforce height
+        company_lbl = ctk.CTkLabel(orange_block, text=t["title"], font=ctk.CTkFont(size=20, weight="bold"), text_color="white")
+        company_lbl.pack(expand=True, pady=10)
+
+        # Below header_main: Blue block for form title
+        form_block = ctk.CTkFrame(main_scroll, fg_color="#000080", height=40, corner_radius=0)
+        form_block.pack(fill="x", pady=(0, 10))
+        form_block.grid_propagate(False)
+        form_lbl = ctk.CTkLabel(form_block, text=t["form_title"], font=ctk.CTkFont(size=16, weight="bold"), text_color="white")
+        form_lbl.pack(expand=True, pady=10)
+
+        # Fields block - light blue divided header block
+        fields_block = ctk.CTkFrame(main_scroll, fg_color="#E6F3FF", corner_radius=10, border_width=2, border_color="#000080")
+        fields_block.pack(fill="x", pady=5)
+
+        # Status label in fields_block bottom right
+        self.status_label = ctk.CTkLabel(fields_block, text="", width=200, anchor="e", text_color="navy")
+        self.status_label.pack(side="bottom", fill="x", padx=10, pady=5)
+
+        # Header grid inside fields_block
+        header_grid = ctk.CTkFrame(fields_block, fg_color="transparent")
+        header_grid.pack(padx=20, pady=10, fill="x")
+        for i in range(6):
+            header_grid.grid_columnconfigure(i, weight=1)
+
+        # Row 1: Contract No., Contract Title, Report No., Activity Date
+        ctk.CTkLabel(header_grid, text=t["contract_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.header_entries["contract_number"] = self.create_entry_with_mic(header_grid, "header_contract_number", row=0, col=1, pady=5)
+        ctk.CTkLabel(header_grid, text=t["contract_title"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=2, sticky="w", padx=5, pady=5)
+        self.header_entries["contract_title"] = self.create_entry_with_mic(header_grid, "header_contract_title", row=0, col=3, pady=5)
+        ctk.CTkLabel(header_grid, text=t["report_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=4, sticky="w", padx=5, pady=5)
+        self.header_entries["report_number"] = self.create_entry_with_mic(header_grid, "header_report_number", row=0, col=5, pady=5)
+
+        # Row 2: Activity Date (shifted to row 1 col 5? but keep as is)
+        # In image, Activity Date is in first row right
+        # Adjust: put date in row=0 col=5
+        # Wait, in code above, report_no col4-5, but add date to row=0 col=5? No, make col=6 if needed, but for now, extend columns if necessary.
+        # To match, perhaps 4 sections: left contract/po/drawing/job, middle title/wps/project/line, right report/date/site/location
+        # But current is fine, adjust pady for spacing.
+
+        ctk.CTkLabel(header_grid, text=t["date"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        date_entry = ctk.CTkEntry(header_grid, width=150, fg_color="white")
+        date_entry.insert(0, self.header_data["date"])
+        date_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        self.header_entries["date"] = date_entry
 
         # Row 3: PO / WO No., Client WPS No., Project Title/Well ID
-        ctk.CTkLabel(header_grid, text=t["po_wo_number"]).grid(row=2, column=0, sticky="w", padx=5, pady=2)
-        self.header_entries["po_wo_number"] = self.create_entry_with_mic(header_grid, "header_po_wo_number", row=2, col=1)
-        ctk.CTkLabel(header_grid, text=t["client_wps_number"]).grid(row=2, column=2, sticky="w", padx=5, pady=2)
-        self.header_entries["client_wps_number"] = self.create_entry_with_mic(header_grid, "header_client_wps_number", row=2, col=3)
-        ctk.CTkLabel(header_grid, text=t["project_title_wellID"]).grid(row=2, column=4, sticky="w", padx=5, pady=2)
-        self.header_entries["project_title_wellID"] = self.create_entry_with_mic(header_grid, "header_project_title_wellID", row=2, col=5)
+        ctk.CTkLabel(header_grid, text=t["po_wo_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.header_entries["po_wo_number"] = self.create_entry_with_mic(header_grid, "header_po_wo_number", row=2, col=1, pady=5)
+        ctk.CTkLabel(header_grid, text=t["client_wps_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=2, sticky="w", padx=5, pady=5)
+        self.header_entries["client_wps_number"] = self.create_entry_with_mic(header_grid, "header_client_wps_number", row=2, col=3, pady=5)
+        ctk.CTkLabel(header_grid, text=t["project_title_wellID"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=4, sticky="w", padx=5, pady=5)
+        self.header_entries["project_title_wellID"] = self.create_entry_with_mic(header_grid, "header_project_title_wellID", row=2, col=5, pady=5)
 
         # Row 4: Drawing/ISO No., Line No., Site Name
-        ctk.CTkLabel(header_grid, text=t["drawing_no"]).grid(row=3, column=0, sticky="w", padx=5, pady=2)
-        self.header_entries["drawing_no"] = self.create_entry_with_mic(header_grid, "header_drawing_no", row=3, col=1)
-        ctk.CTkLabel(header_grid, text=t["line_no"]).grid(row=3, column=2, sticky="w", padx=5, pady=2)
-        self.header_entries["line_no"] = self.create_entry_with_mic(header_grid, "header_line_no", row=3, col=3)
-        ctk.CTkLabel(header_grid, text=t["site_name"]).grid(row=3, column=4, sticky="w", padx=5, pady=2)
-        self.header_entries["site_name"] = self.create_entry_with_mic(header_grid, "header_site_name", row=3, col=5)
+        ctk.CTkLabel(header_grid, text=t["drawing_no"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=0, sticky="w", padx=5, pady=5)
+        self.header_entries["drawing_no"] = self.create_entry_with_mic(header_grid, "header_drawing_no", row=3, col=1, pady=5)
+        ctk.CTkLabel(header_grid, text=t["line_no"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=2, sticky="w", padx=5, pady=5)
+        self.header_entries["line_no"] = self.create_entry_with_mic(header_grid, "header_line_no", row=3, col=3, pady=5)
+        ctk.CTkLabel(header_grid, text=t["site_name"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=4, sticky="w", padx=5, pady=5)
+        self.header_entries["site_name"] = self.create_entry_with_mic(header_grid, "header_site_name", row=3, col=5, pady=5)
 
         # Row 5: Job Description (span 2 cols), Location (span 2 cols)
-        ctk.CTkLabel(header_grid, text=t["job_desc"]).grid(row=4, column=0, sticky="w", padx=5, pady=2)
-        self.header_entries["job_desc"] = self.create_entry_with_mic(header_grid, "header_job_desc", row=4, col=1, colspan=2)
-        ctk.CTkLabel(header_grid, text=t["location"]).grid(row=4, column=3, sticky="w", padx=5, pady=2)
-        self.header_entries["location"] = self.create_entry_with_mic(header_grid, "header_location", row=4, col=4, colspan=2)
+        ctk.CTkLabel(header_grid, text=t["job_desc"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+        self.header_entries["job_desc"] = self.create_entry_with_mic(header_grid, "header_job_desc", row=4, col=1, colspan=2, pady=5)
+        ctk.CTkLabel(header_grid, text=t["location"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=4, column=3, sticky="w", padx=5, pady=5)
+        self.header_entries["location"] = self.create_entry_with_mic(header_grid, "header_location", row=4, col=4, colspan=2, pady=5)
 
         # Table section - Using a scrollable frame for vertical, canvas for horizontal
         table_outer = ctk.CTkFrame(main_scroll, corner_radius=10)
@@ -484,8 +515,8 @@ class WeldingShopApp:
         self.canvas.bind("<MouseWheel>", on_mousewheel)
         self.canvas.bind("<Shift-MouseWheel>", on_shift_mousewheel)
 
-        # Table headers
-        headers_fr = ctk.CTkFrame(inner_table, fg_color="gray90")
+        # Table headers - gray background like Excel
+        headers_fr = ctk.CTkFrame(inner_table, fg_color=("gray85", "gray15"))
         headers_fr.pack(fill="x")
 
         header_fields = ["sr_no", "kp_sec", "weld_id", "wps_no", "material_gr_heat", "size", "thk", "weld_side", "welder_process", "visual_i", "visual_ii", "root_hot", "fill1", "fill2", "cap", "final", "fit_up", "mtrl_comb", "pipe_line", "pipe_no", "pipe_length", "remarks"]
@@ -494,7 +525,7 @@ class WeldingShopApp:
             headers_fr.grid_columnconfigure(i, weight=1, minsize=70)  # Increased minsize for visibility
         
         for col, field in enumerate(header_fields):
-            lbl = ctk.CTkLabel(headers_fr, text=t["table_headers"][field], font=ctk.CTkFont(weight="bold"))
+            lbl = ctk.CTkLabel(headers_fr, text=t["table_headers"][field], font=ctk.CTkFont(weight="bold"), text_color=("black", "white"))
             lbl.grid(row=0, column=col, padx=1, pady=5, sticky="ew")
 
         # 10 data rows
@@ -508,35 +539,35 @@ class WeldingShopApp:
             self.table_entries[row] = {}
             for col, field in enumerate(header_fields):
                 if field == "sr_no":
-                    entry = ctk.CTkEntry(row_fr, width=50, state="readonly")  # Auto Sr.No
+                    entry = ctk.CTkEntry(row_fr, width=50, state="readonly", fg_color="white")  # Auto Sr.No
                     entry.insert(0, str(row))
                     entry.grid(row=0, column=col, padx=1, pady=1, sticky="ew")
                 else:
                     entry = self.create_entry_with_mic(row_fr, f"table_row_{row}_{field}", row=0, col=col)
                     self.table_entries[row][field] = entry
 
-        # Welding Consumable section
-        consumable_fr = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        # Welding Consumable section - light gray
+        consumable_fr = ctk.CTkFrame(main_scroll, fg_color=("lightgray", "gray30"), corner_radius=5)
         consumable_fr.pack(fill="x", pady=10)
         for i in range(2):
             consumable_fr.grid_columnconfigure(i, weight=1)
 
         ctk.CTkLabel(consumable_fr, text=t["welding_consumable"], font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        ctk.CTkLabel(consumable_fr, text=t["aws_classification"]).grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        ctk.CTkLabel(consumable_fr, text=t["aws_classification"], font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, sticky="w", padx=5, pady=2)
         self.header_entries["aws_classification"] = self.create_entry_with_mic(consumable_fr, "header_aws_classification", row=1, col=1)
-        ctk.CTkLabel(consumable_fr, text=t["electrode_dia"]).grid(row=2, column=0, sticky="w", padx=5, pady=2)
+        ctk.CTkLabel(consumable_fr, text=t["electrode_dia"], font=ctk.CTkFont(weight="bold")).grid(row=2, column=0, sticky="w", padx=5, pady=2)
         self.header_entries["electrode_dia"] = self.create_entry_with_mic(consumable_fr, "header_electrode_dia", row=2, col=1)
-        ctk.CTkLabel(consumable_fr, text=t["manufacturer_batch"]).grid(row=3, column=0, sticky="w", padx=5, pady=2)
+        ctk.CTkLabel(consumable_fr, text=t["manufacturer_batch"], font=ctk.CTkFont(weight="bold")).grid(row=3, column=0, sticky="w", padx=5, pady=2)
         self.header_entries["manufacturer_batch"] = self.create_entry_with_mic(consumable_fr, "header_manufacturer_batch", row=3, col=1)
 
-        # Legends
-        legend_fr = ctk.CTkFrame(main_scroll, fg_color="lightgray")
+        # Legends - light gray background
+        legend_fr = ctk.CTkFrame(main_scroll, fg_color=("lightgray", "gray30"), corner_radius=5)
         legend_fr.pack(fill="x", pady=10)
         ctk.CTkLabel(legend_fr, text=t["material_grade_legend"], justify="left", anchor="w", font=ctk.CTkFont(size=10)).pack(pady=5, padx=5)
         ctk.CTkLabel(legend_fr, text=t["welding_process_legend"], justify="left", anchor="w", font=ctk.CTkFont(size=10)).pack(pady=5, padx=5)
 
-        # Signatures frame
-        sig_fr = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        # Signatures frame - light blue like header
+        sig_fr = ctk.CTkFrame(main_scroll, fg_color=("lightblue", "darkblue"), corner_radius=5)
         sig_fr.pack(fill="x", pady=10)
         for i in range(13):  # Enough columns
             sig_fr.grid_columnconfigure(i, weight=1)
@@ -544,16 +575,16 @@ class WeldingShopApp:
         sig_keys = ["permit_holder", "qci", "pdo", "data_entry"]
         for i, key in enumerate(sig_keys):
             col_offset = i * 3
-            ctk.CTkLabel(sig_fr, text=t[key], font=ctk.CTkFont(weight="bold")).grid(row=0, column=col_offset, sticky="w", padx=5, pady=5)
-            ctk.CTkLabel(sig_fr, text=t["name"]).grid(row=1, column=col_offset, sticky="w", padx=5)
-            self.signature_entries[f"{key}_name"] = ctk.CTkEntry(sig_fr, width=150)
+            ctk.CTkLabel(sig_fr, text=t[key], font=ctk.CTkFont(weight="bold", size=12)).grid(row=0, column=col_offset, sticky="w", padx=5, pady=5)
+            ctk.CTkLabel(sig_fr, text=t["name"], font=ctk.CTkFont(weight="bold")).grid(row=1, column=col_offset, sticky="w", padx=5)
+            self.signature_entries[f"{key}_name"] = ctk.CTkEntry(sig_fr, width=150, fg_color="white")
             self.signature_entries[f"{key}_name"].grid(row=1, column=col_offset+1, sticky="ew", padx=5, pady=2)
-            ctk.CTkLabel(sig_fr, text=t["signature"]).grid(row=2, column=col_offset, sticky="w", padx=5)
-            sig_entry = ctk.CTkEntry(sig_fr, placeholder_text="Signature", width=150)
+            ctk.CTkLabel(sig_fr, text=t["signature"], font=ctk.CTkFont(weight="bold")).grid(row=2, column=col_offset, sticky="w", padx=5)
+            sig_entry = ctk.CTkEntry(sig_fr, placeholder_text="Signature", width=150, fg_color="white")
             self.signature_entries[f"{key}_signature"] = sig_entry
             sig_entry.grid(row=2, column=col_offset+1, sticky="ew", padx=5, pady=2)
-            ctk.CTkLabel(sig_fr, text=t["date"]).grid(row=3, column=col_offset, sticky="w", padx=5)
-            self.signature_entries[f"{key}_date"] = ctk.CTkEntry(sig_fr, width=150)
+            ctk.CTkLabel(sig_fr, text=t["date"], font=ctk.CTkFont(weight="bold")).grid(row=3, column=col_offset, sticky="w", padx=5)
+            self.signature_entries[f"{key}_date"] = ctk.CTkEntry(sig_fr, width=150, fg_color="white")
             self.signature_entries[f"{key}_date"].insert(0, datetime.now().strftime("%Y-%m-%d"))
             self.signature_entries[f"{key}_date"].grid(row=3, column=col_offset+1, sticky="ew", padx=5, pady=2)
 
@@ -565,14 +596,14 @@ class WeldingShopApp:
         self.export_btn = ctk.CTkButton(btn_fr, text=t["download_excel"], command=self.export_excel)
         self.export_btn.pack(side="right", padx=5)
 
-    def create_entry_with_mic(self, parent, field_id, row=0, col=0, colspan=1):
+    def create_entry_with_mic(self, parent, field_id, row=0, col=0, colspan=1, pady=2):
         """Create an entry + mic button using grid for better space management."""
         fr = ctk.CTkFrame(parent)
-        fr.grid(row=row, column=col, columnspan=colspan, sticky="ew", padx=1, pady=1)
+        fr.grid(row=row, column=col, columnspan=colspan, sticky="ew", padx=1, pady=pady)
         fr.grid_columnconfigure(0, weight=1)
         fr.grid_columnconfigure(1, weight=0, minsize=35)  # Fixed space for mic
 
-        entry = ctk.CTkEntry(fr)
+        entry = ctk.CTkEntry(fr, fg_color="white")
         entry.grid(row=0, column=0, sticky="ew", padx=(2, 2), pady=2)
 
         mic_btn = ctk.CTkButton(
@@ -581,6 +612,7 @@ class WeldingShopApp:
             width=30,
             height=25,
             corner_radius=8,
+            fg_color="lightblue",
             command=lambda f=field_id: self.record_voice(f)
         )
         mic_btn.grid(row=0, column=1, sticky="e", padx=(2, 2), pady=2)
