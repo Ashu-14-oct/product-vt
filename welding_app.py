@@ -369,7 +369,7 @@ class WeldingShopApp:
         return field_id
 
     def create_ui(self):
-        """Build UI mimicking the Excel sheet layout."""
+        """Build UI mimicking the Excel sheet layout (fixed: table_canvas is the window inside self.canvas)."""
         # Main scrollable frame for overall content
         main_scroll = ctk.CTkScrollableFrame(self.root, corner_radius=10)
         main_scroll.pack(fill="both", expand=True, padx=10, pady=10)
@@ -383,7 +383,7 @@ class WeldingShopApp:
         # Logo left - fixed width
         logo_fr = ctk.CTkFrame(header_main, fg_color="transparent", width=150)
         logo_fr.pack(side="left", fill="y", padx=(50, 30))
-        logo_fr.grid_propagate(False)  # Fix width
+        logo_fr.grid_propagate(False)
         try:
             logo_img = ctk.CTkImage(light_image=Image.open("logo.png"), size=(120, 100))
             logo_lbl = ctk.CTkLabel(logo_fr, image=logo_img, text="")
@@ -396,12 +396,10 @@ class WeldingShopApp:
         # Right side: Orange block for company name
         right_header = ctk.CTkFrame(header_main, fg_color="transparent")
         right_header.pack(side="right", fill="both", expand=True)
-        
-        # Add top spacer for vertical centering (adjust height as needed, e.g., 20 to shift down)
         top_spacer = ctk.CTkFrame(right_header, fg_color="transparent", height=20)
         top_spacer.pack(fill="x")
         top_spacer.grid_propagate(False)
-        
+
         orange_block = ctk.CTkFrame(right_header, fg_color="#FF8C00", height=80, corner_radius=0)
         orange_block.pack(fill="x")
         orange_block.grid_propagate(False)
@@ -431,35 +429,32 @@ class WeldingShopApp:
 
         # Status label in fields_block bottom right
         self.status_label = ctk.CTkLabel(fields_block, text="", width=200, anchor="e", text_color="navy")
-        self.status_label.pack(side="bottom", fill="x", padx=10, pady=5)    
+        self.status_label.pack(side="bottom", fill="x", padx=10, pady=5)
 
-        # Header grid inside fields_block
+        # Header grid inside fields_block (left / middle / right groups)
         header_grid = ctk.CTkFrame(fields_block, fg_color="transparent")
         header_grid.pack(padx=20, pady=10, fill="x")
-        header_grid.grid_columnconfigure(0, weight=1)  # Left group
-        header_grid.grid_columnconfigure(1, weight=1)  # Middle group
-        header_grid.grid_columnconfigure(2, weight=1)  # Right group
-        
-        # Create 3 vertical sub-frames for groups (with subtle borders)
+        header_grid.grid_columnconfigure(0, weight=1)
+        header_grid.grid_columnconfigure(1, weight=1)
+        header_grid.grid_columnconfigure(2, weight=1)
+
+        # Left / Middle / Right groups (same as before)
         left_group = ctk.CTkFrame(header_grid, fg_color="transparent", border_width=1, border_color="#CCCCCC")
         left_group.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=5)
-        left_group.grid_rowconfigure((0,1,2,3), weight=0)  # Fixed rows per field
-        left_group.grid_columnconfigure(0, weight=0)  # Label column
-        left_group.grid_columnconfigure(1, weight=1)  # Entry column
+        left_group.grid_columnconfigure(0, weight=0)
+        left_group.grid_columnconfigure(1, weight=1)
 
         middle_group = ctk.CTkFrame(header_grid, fg_color="transparent", border_width=1, border_color="#CCCCCC")
         middle_group.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-        middle_group.grid_rowconfigure((0,1,2,3), weight=0)
-        middle_group.grid_columnconfigure(0, weight=0)  # Label column
-        middle_group.grid_columnconfigure(1, weight=1)  # Entry column
+        middle_group.grid_columnconfigure(0, weight=0)
+        middle_group.grid_columnconfigure(1, weight=1)
 
         right_group = ctk.CTkFrame(header_grid, fg_color="transparent", border_width=1, border_color="#CCCCCC")
         right_group.grid(row=0, column=2, sticky="ew", padx=(10, 0), pady=5)
-        right_group.grid_rowconfigure((0,1,2,3), weight=0)
-        right_group.grid_columnconfigure(0, weight=0)  # Label column
-        right_group.grid_columnconfigure(1, weight=1)  # Entry column
-        
-        # Left Group: Contract No., PO/WO No., Drawing/ISO No., Job Description
+        right_group.grid_columnconfigure(0, weight=0)
+        right_group.grid_columnconfigure(1, weight=1)
+
+        # Left group fields
         ctk.CTkLabel(left_group, text=t["contract_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["contract_number"] = self.create_entry_with_click_voice(left_group, "header_contract_number", row=0, col=1, pady=3)
         ctk.CTkLabel(left_group, text=t["po_wo_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=1, column=0, sticky="w", padx=5, pady=3)
@@ -467,9 +462,9 @@ class WeldingShopApp:
         ctk.CTkLabel(left_group, text=t["drawing_no"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["drawing_no"] = self.create_entry_with_click_voice(left_group, "header_drawing_no", row=2, col=1, pady=3)
         ctk.CTkLabel(left_group, text=t["job_desc"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=0, sticky="w", padx=5, pady=3)
-        self.header_entries["job_desc"] = self.create_entry_with_click_voice(left_group, "header_job_desc", row=3, col=1, pady=3, colspan=1)  # Full width by default
-        
-        # Middle Group: Contract Title, Client WPS No., Line No., Location
+        self.header_entries["job_desc"] = self.create_entry_with_click_voice(left_group, "header_job_desc", row=3, col=1, pady=3)
+
+        # Middle group fields
         ctk.CTkLabel(middle_group, text=t["contract_title"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["contract_title"] = self.create_entry_with_click_voice(middle_group, "header_contract_title", row=0, col=1, pady=3)
         ctk.CTkLabel(middle_group, text=t["client_wps_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=1, column=0, sticky="w", padx=5, pady=3)
@@ -477,13 +472,13 @@ class WeldingShopApp:
         ctk.CTkLabel(middle_group, text=t["line_no"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["line_no"] = self.create_entry_with_click_voice(middle_group, "header_line_no", row=2, col=1, pady=3)
         ctk.CTkLabel(middle_group, text=t["location"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=0, sticky="w", padx=5, pady=3)
-        self.header_entries["location"] = self.create_entry_with_click_voice(middle_group, "header_location", row=3, col=1, pady=3, colspan=1)
-        
-        # Right Group: Activity Date, Report No., Project Title/Well ID, Site Name
+        self.header_entries["location"] = self.create_entry_with_click_voice(middle_group, "header_location", row=3, col=1, pady=3)
+
+        # Right group fields
         ctk.CTkLabel(right_group, text=t["date"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=0, sticky="w", padx=5, pady=3)
         date_entry = ctk.CTkEntry(right_group, width=150, fg_color="white")
-        date_entry.insert(0, self.header_data["date"])
-        date_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=3, columnspan=1)  # Span if needed
+        date_entry.insert(0, self.header_data.get("date", ""))
+        date_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=3, columnspan=1)
         self.header_entries["date"] = date_entry
         ctk.CTkLabel(right_group, text=t["report_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=1, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["report_number"] = self.create_entry_with_click_voice(right_group, "header_report_number", row=1, col=1, pady=3)
@@ -492,131 +487,111 @@ class WeldingShopApp:
         ctk.CTkLabel(right_group, text=t["site_name"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["site_name"] = self.create_entry_with_click_voice(right_group, "header_site_name", row=3, col=1, pady=3)
 
-        # Row 1: Contract No., Contract Title, Report No., Activity Date
-        # ctk.CTkLabel(header_grid, text=t["contract_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        # self.header_entries["contract_number"] = self.create_entry_with_click_voice(header_grid, "header_contract_number", row=0, col=1, pady=5)
-        # ctk.CTkLabel(header_grid, text=t["contract_title"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=2, sticky="w", padx=5, pady=5)
-        # self.header_entries["contract_title"] = self.create_entry_with_click_voice(header_grid, "header_contract_title", row=0, col=3, pady=5)
-        # ctk.CTkLabel(header_grid, text=t["report_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=4, sticky="w", padx=5, pady=5)
-        # self.header_entries["report_number"] = self.create_entry_with_click_voice(header_grid, "header_report_number", row=0, col=5, pady=5)
-
-        # Row 2: Activity Date (shifted to row 1 col 5? but keep as is)
-        # In image, Activity Date is in first row right
-        # Adjust: put date in row=0 col=5
-        # Wait, in code above, report_no col4-5, but add date to row=0 col=5? No, make col=6 if needed, but for now, extend columns if necessary.
-        # To match, perhaps 4 sections: left contract/po/drawing/job, middle title/wps/project/line, right report/date/site/location
-        # But current is fine, adjust pady for spacing.
-
-        # ctk.CTkLabel(header_grid, text=t["date"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=1, column=0, sticky="w", padx=5, pady=5)
-        # date_entry = ctk.CTkEntry(header_grid, width=150, fg_color="white")
-        # date_entry.insert(0, self.header_data["date"])
-        # date_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
-        # self.header_entries["date"] = date_entry
-
-        # Row 3: PO / WO No., Client WPS No., Project Title/Well ID
-        # ctk.CTkLabel(header_grid, text=t["po_wo_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=0, sticky="w", padx=5, pady=5)
-        # self.header_entries["po_wo_number"] = self.create_entry_with_click_voice(header_grid, "header_po_wo_number", row=2, col=1, pady=5)
-        # ctk.CTkLabel(header_grid, text=t["client_wps_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=2, sticky="w", padx=5, pady=5)
-        # self.header_entries["client_wps_number"] = self.create_entry_with_click_voice(header_grid, "header_client_wps_number", row=2, col=3, pady=5)
-        # ctk.CTkLabel(header_grid, text=t["project_title_wellID"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=4, sticky="w", padx=5, pady=5)
-        # self.header_entries["project_title_wellID"] = self.create_entry_with_click_voice(header_grid, "header_project_title_wellID", row=2, col=5, pady=5)
-
-        # Row 4: Drawing/ISO No., Line No., Site Name
-        # ctk.CTkLabel(header_grid, text=t["drawing_no"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=0, sticky="w", padx=5, pady=5)
-        # self.header_entries["drawing_no"] = self.create_entry_with_click_voice(header_grid, "header_drawing_no", row=3, col=1, pady=5)
-        # ctk.CTkLabel(header_grid, text=t["line_no"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=2, sticky="w", padx=5, pady=5)
-        # self.header_entries["line_no"] = self.create_entry_with_click_voice(header_grid, "header_line_no", row=3, col=3, pady=5)
-        # ctk.CTkLabel(header_grid, text=t["site_name"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=4, sticky="w", padx=5, pady=5)
-        # self.header_entries["site_name"] = self.create_entry_with_click_voice(header_grid, "header_site_name", row=3, col=5, pady=5)
-
-        # Row 5: Job Description (span 2 cols), Location (span 2 cols)
-        # ctk.CTkLabel(header_grid, text=t["job_desc"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=4, column=0, sticky="w", padx=5, pady=5)
-        # self.header_entries["job_desc"] = self.create_entry_with_click_voice(header_grid, "header_job_desc", row=4, col=1, colspan=2, pady=5)
-        # ctk.CTkLabel(header_grid, text=t["location"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=4, column=3, sticky="w", padx=5, pady=5)
-        # self.header_entries["location"] = self.create_entry_with_click_voice(header_grid, "header_location", row=4, col=4, colspan=2, pady=5)
-
-        # Table section - Using a scrollable frame for vertical, canvas for horizontal
+        # -----------------------
+        # Table section (fixed)
+        # -----------------------
         table_outer = ctk.CTkFrame(main_scroll, corner_radius=10)
         table_outer.pack(fill="both", expand=True, pady=10)
 
-        # Horizontal scroll canvas
-        self.canvas = tk.Canvas(table_outer)
+        # Outer canvas with scrollbars (this canvas will hold the table_canvas window directly)
+        self.canvas = tk.Canvas(table_outer, highlightthickness=0, bg="lightgray")
         h_scrollbar = ctk.CTkScrollbar(table_outer, orientation="horizontal", command=self.canvas.xview)
+        v_scrollbar = ctk.CTkScrollbar(table_outer, orientation="vertical", command=self.canvas.yview)
         h_scrollbar.pack(side="bottom", fill="x")
-        self.canvas.configure(xscrollcommand=h_scrollbar.set)
+        v_scrollbar.pack(side="right", fill="y")
+        self.canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
         self.canvas.pack(side="left", fill="both", expand=True)
 
-        # Vertical scrollbar
-        v_scrollbar = ctk.CTkScrollbar(table_outer, orientation="vertical", command=self.canvas.yview)
-        v_scrollbar.pack(side="right", fill="y")
-        self.canvas.configure(yscrollcommand=v_scrollbar.set)
+        # Table specs
+        header_fields = ["sr_no", "kp_sec", "weld_id", "wps_no", "material_gr_heat", "size", "thk", "weld_side",
+                        "welder_process", "visual_i", "visual_ii", "root_hot", "fill1", "fill2", "cap", "final",
+                        "fit_up", "mtrl_comb", "pipe_line", "pipe_no", "pipe_length", "remarks"]
+        col_labels = [t["table_headers"].get(f, f) for f in header_fields]
+        col_widths = [48, 60, 100, 80, 170, 70, 60, 80, 220, 110, 110, 70, 70, 70, 70, 70, 70, 100, 90, 120, 110, 160]
+        header_h = 44
+        row_h = 36
+        nrows = 10
 
-        # Inner frame
-        inner_table = ctk.CTkFrame(self.canvas)
-        self.inner_id = self.canvas.create_window((0, 0), window=inner_table, anchor="nw")
+        total_w = sum(col_widths)
+        total_h = header_h + nrows * row_h
 
-        def update_scrollregion(event):
-            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        # Create the actual table canvas and place it directly into the outer canvas window.
+        table_canvas = tk.Canvas(self.canvas, width=total_w, height=min(total_h, 520), bg="white", highlightthickness=0)
+        # Create one window in the outer canvas that holds this table_canvas (anchor northwest)
+        self.inner_id = self.canvas.create_window((0, 0), window=table_canvas, anchor="nw", width=total_w, height=total_h)
 
-        inner_table.bind("<Configure>", update_scrollregion)
+        # draw header background and text
+        x = 0
+        for label, w in zip(col_labels, col_widths):
+            table_canvas.create_rectangle(x, 0, x + w, header_h, fill="#E6F3FF", outline="black", width=1)
+            table_canvas.create_text(x + w / 2, header_h / 2, text=label, font=("Arial", 10, "bold"), anchor="c")
+            x += w
 
-        def update_canvas_width(event):
-            canvas_width = event.width
-            self.canvas.itemconfig(self.inner_id, width=canvas_width)
+        # vertical lines
+        x = 0
+        for w in col_widths:
+            table_canvas.create_line(x, 0, x, total_h, fill="black", width=1)
+            x += w
+        table_canvas.create_line(x, 0, x, total_h, fill="black", width=1)
 
-        self.canvas.bind("<Configure>", update_canvas_width)
+        # horizontal lines
+        for r in range(0, nrows + 1):
+            y = header_h + r * row_h
+            table_canvas.create_line(0, y, total_w, y, fill="black", width=1)
 
-        # Mouse wheel bindings for better scrolling
+        # create entries and place them at absolute positions on table_canvas
+        self.table_entries = {}
+        for row in range(nrows):
+            self.table_entries[row + 1] = {}
+            x = 0
+            for col_index, (field, w) in enumerate(zip(header_fields, col_widths)):
+                cx = x + (w // 2)
+                cy = header_h + row * row_h + (row_h // 2)
+                if field == "sr_no":
+                    lbl = tk.Label(table_canvas, text=str(row + 1), font=("Arial", 10, "bold"), bg="white", bd=0)
+                    table_canvas.create_window(cx, cy, window=lbl, width=w - 6, height=row_h - 6, anchor="c")
+                    self.table_entries[row + 1][field] = lbl
+                else:
+                    fid = f"table_row_{row+1}_{field}"
+                    e = tk.Entry(table_canvas, relief="solid", bd=1, font=("Arial", 10))
+                    # bind click (and Enter) to start voice recording
+                    e._field_id = fid
+                    e.bind("<Button-1>", lambda ev, fid=fid: self.record_voice(fid))
+                    e.bind("<Return>", lambda ev, fid=fid: self.record_voice(fid))
+                    table_canvas.create_window(cx, cy, window=e, width=w - 6, height=row_h - 6, anchor="c")
+                    self.table_entries[row + 1][field] = e
+                x += w
+
+        # final scrollregion and resize behaviour:
+        def _update_scrollregion(event=None):
+            try:
+                # ensure the canvas scrollregion matches the full table size
+                self.canvas.configure(scrollregion=(0, 0, total_w, total_h))
+                # keep the inner window sized to content (so horizontal scrolling shows all columns)
+                self.canvas.itemconfig(self.inner_id, width=max(total_w, self.canvas.winfo_width()), height=max(total_h, self.canvas.winfo_height()))
+            except Exception:
+                pass
+
+        # call once and bind
+        _update_scrollregion()
+        table_canvas.bind("<Configure>", _update_scrollregion)
+        self.canvas.bind("<Configure>", _update_scrollregion)
+
+        # Mouse wheel bindings (unchanged)
         def on_mousewheel(event):
             self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
         def on_shift_mousewheel(event):
             self.canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        # Bind to root for global scrolling
         self.root.bind_all("<MouseWheel>", on_mousewheel)
         self.root.bind_all("<Shift-MouseWheel>", on_shift_mousewheel)
-        # For Linux
         self.root.bind_all("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
         self.root.bind_all("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
         self.root.bind_all("<Shift-Button-4>", lambda e: self.canvas.xview_scroll(-1, "units"))
         self.root.bind_all("<Shift-Button-5>", lambda e: self.canvas.xview_scroll(1, "units"))
 
-        # Bind to canvas too
-        self.canvas.bind("<MouseWheel>", on_mousewheel)
-        self.canvas.bind("<Shift-MouseWheel>", on_shift_mousewheel)
-
-        # Table headers - gray background like Excel
-        headers_fr = ctk.CTkFrame(inner_table, fg_color="gray85", border_width=1, border_color="black")
-        headers_fr.pack(fill="x", pady=(0, 1))
-
-        header_fields = ["sr_no", "kp_sec", "weld_id", "wps_no", "material_gr_heat", "size", "thk", "weld_side", "welder_process", "visual_i", "visual_ii", "root_hot", "fill1", "fill2", "cap", "final", "fit_up", "mtrl_comb", "pipe_line", "pipe_no", "pipe_length", "remarks"]
-        num_cols = len(header_fields)
-        for i in range(num_cols):
-            headers_fr.grid_columnconfigure(i, weight=1, minsize=70)  # Increased minsize for visibility
-        
-        for col, field in enumerate(header_fields):
-            lbl = ctk.CTkLabel(headers_fr, text=t["table_headers"][field], font=ctk.CTkFont(weight="bold"), text_color=("black", "white"))
-            lbl.grid(row=0, column=col, padx=1, pady=5, sticky="ew")
-
-        # 10 data rows
-        self.table_entries = {}
-        for row in range(1, 11):
-            row_fr = ctk.CTkFrame(inner_table, border_width=1, border_color="black")  # Thin border per row
-            row_fr.pack(fill="x", pady=0)
-            for i in range(num_cols):
-                row_fr.grid_columnconfigure(i, weight=1, minsize=70)
-
-            self.table_entries[row] = {}
-            for col, field in enumerate(header_fields):
-                if field == "sr_no":
-                    sr_lbl = ctk.CTkLabel(row_fr, text=str(row), width=50, font=ctk.CTkFont(weight="bold"), fg_color="white")
-                    sr_lbl.grid(row=0, column=col, padx=1, pady=1, sticky="ew")
-                else:
-                    entry = self.create_entry_with_click_voice(row_fr, f"table_row_{row}_{field}", row=0, col=col)
-                    self.table_entries[row][field] = entry
-
-        # Welding Consumable section - light gray
+        # Welding consumable / legends / signatures / buttons (same as before)
         consumable_fr = ctk.CTkFrame(main_scroll, fg_color=("lightgray", "gray30"), corner_radius=5)
         consumable_fr.pack(fill="x", pady=10)
         for i in range(2):
@@ -630,16 +605,14 @@ class WeldingShopApp:
         ctk.CTkLabel(consumable_fr, text=t["manufacturer_batch"], font=ctk.CTkFont(weight="bold")).grid(row=3, column=0, sticky="w", padx=5, pady=2)
         self.header_entries["manufacturer_batch"] = self.create_entry_with_click_voice(consumable_fr, "header_manufacturer_batch", row=3, col=1)
 
-        # Legends - light gray background
         legend_fr = ctk.CTkFrame(main_scroll, fg_color=("lightgray", "gray30"), corner_radius=5)
         legend_fr.pack(fill="x", pady=10)
         ctk.CTkLabel(legend_fr, text=t["material_grade_legend"], justify="left", anchor="w", font=ctk.CTkFont(size=10)).pack(pady=5, padx=5)
         ctk.CTkLabel(legend_fr, text=t["welding_process_legend"], justify="left", anchor="w", font=ctk.CTkFont(size=10)).pack(pady=5, padx=5)
 
-        # Signatures frame - light blue like header
         sig_fr = ctk.CTkFrame(main_scroll, fg_color=("lightblue", "darkblue"), corner_radius=5)
         sig_fr.pack(fill="x", pady=10)
-        for i in range(13):  # Enough columns
+        for i in range(13):
             sig_fr.grid_columnconfigure(i, weight=1)
 
         sig_keys = ["permit_holder", "qci", "pdo", "data_entry"]
@@ -655,7 +628,10 @@ class WeldingShopApp:
             sig_entry.grid(row=2, column=col_offset+1, sticky="ew", padx=5, pady=2)
             ctk.CTkLabel(sig_fr, text=t["date"], font=ctk.CTkFont(weight="bold")).grid(row=3, column=col_offset, sticky="w", padx=5)
             self.signature_entries[f"{key}_date"] = ctk.CTkEntry(sig_fr, width=150, fg_color="white")
-            self.signature_entries[f"{key}_date"].insert(0, datetime.now().strftime("%Y-%m-%d"))
+            try:
+                self.signature_entries[f"{key}_date"].insert(0, datetime.now().strftime("%Y-%m-%d"))
+            except Exception:
+                pass
             self.signature_entries[f"{key}_date"].grid(row=3, column=col_offset+1, sticky="ew", padx=5, pady=2)
 
         # Buttons
@@ -665,6 +641,8 @@ class WeldingShopApp:
         self.clear_btn.pack(side="left", padx=5)
         self.export_btn = ctk.CTkButton(btn_fr, text=t["download_excel"], command=self.export_excel)
         self.export_btn.pack(side="right", padx=5)
+
+
 
     def create_entry_with_click_voice(self, parent, field_id, row=0, col=0, colspan=1, pady=2):
         """Create an entry that triggers voice input on click (no mic button)."""
@@ -695,56 +673,99 @@ class WeldingShopApp:
         # Load header
         for key, value in self.header_data.items():
             if key in self.header_entries:
-                self.header_entries[key].delete(0, "end")
-                self.header_entries[key].insert(0, value)
+                try:
+                    self.header_entries[key].delete(0, "end")
+                    self.header_entries[key].insert(0, value)
+                except Exception:
+                    pass
 
         # Load table
         for i, record in enumerate(self.records[:10]):
             row = i + 1
             for field, value in record.items():
-                if field in self.table_entries[row]:
-                    self.table_entries[row][field].delete(0, "end")
-                    self.table_entries[row][field].insert(0, value)
+                widget = self.table_entries.get(row, {}).get(field)
+                if widget:
+                    try:
+                        # only entries support delete/insert
+                        if hasattr(widget, "delete") and hasattr(widget, "insert"):
+                            widget.delete(0, "end")
+                            widget.insert(0, value)
+                    except Exception:
+                        pass
 
         # Load signatures
         for k, v in self.signature_entries.items():
-            v.delete(0, "end")
-            v.insert(0, self.header_data.get(k, ""))
+            try:
+                v.delete(0, "end")
+                v.insert(0, self.header_data.get(k, ""))
+            except Exception:
+                pass
 
     # Save UI to data
     def save_from_ui(self):
         # Header
         for key, entry in self.header_entries.items():
-            self.header_data[key] = entry.get().strip()
+            try:
+                self.header_data[key] = entry.get().strip()
+            except Exception:
+                self.header_data[key] = ""
 
         # Table
         self.records = []
         for row in range(1, 11):
             row_data = {}
             for field, entry in self.table_entries[row].items():
-                row_data[field] = entry.get().strip()
+                val = ""
+                try:
+                    if hasattr(entry, "get"):
+                        val = entry.get().strip()
+                    elif hasattr(entry, "cget"):
+                        # label: text content
+                        val = str(entry.cget("text")).strip()
+                except Exception:
+                    val = ""
+                row_data[field] = val
             if any(row_data.values()):  # If row not empty
                 self.records.append(row_data)
 
         # Signatures
         for key, entry in self.signature_entries.items():
-            self.header_data[key] = entry.get().strip()
+            try:
+                self.header_data[key] = entry.get().strip()
+            except Exception:
+                self.header_data[key] = ""
 
         self.save_data()
 
     def clear_form(self):
         for entry in self.header_entries.values():
-            entry.delete(0, "end")
-        self.header_entries["date"].insert(0, datetime.now().strftime("%Y-%m-%d"))
+            try:
+                entry.delete(0, "end")
+            except Exception:
+                pass
+        try:
+            self.header_entries["date"].insert(0, datetime.now().strftime("%Y-%m-%d"))
+        except Exception:
+            pass
         for row_entries in self.table_entries.values():
             for entry in row_entries.values():
-                entry.delete(0, "end")
+                try:
+                    if hasattr(entry, "delete"):
+                        entry.delete(0, "end")
+                except Exception:
+                    pass
         for entry in self.signature_entries.values():
-            entry.delete(0, "end")
+            try:
+                entry.delete(0, "end")
+            except Exception:
+                pass
         for key in self.signature_entries:
             if "_date" in key:
                 entry = self.signature_entries[key]
-                entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+                try:
+                    entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+                except Exception:
+                    pass
         # Re-enable mics if cleared
         for field_id in list(self.mic_buttons.keys()):
             self._clear_field(field_id)
@@ -892,9 +913,12 @@ class WeldingShopApp:
         return None
 
     def _voice_confirm(self, field_id, recognized_text, max_retries=1):
-        """Ask for voice confirmation (yes/no). On yes -> lock field (replace mic with label).
-        On no -> clear and re-enable mic. falls back to GUI confirm if voice fails."""
-        # speak confirmation
+        """Ask for voice confirmation (yes/no).
+        On yes -> lock field (make readonly).
+        On no  -> clear field so user can re-record.
+        Falls back to GUI confirm if voice fails.
+        """
+        # Speak confirmation prompt
         try:
             if self.current_lang == "ar":
                 confirm_prompt = self.translations["ar"].get("confirm_prompt", "قلت {}. هل تؤكد؟").format(recognized_text)
@@ -906,15 +930,15 @@ class WeldingShopApp:
 
         time.sleep(0.2)
 
-        yes_set_en = {"yes", "yeah", "yup", "yep", "confirm", "correct"}
-        no_set_en = {"no", "nah", "nope", "incorrect", "wrong"}
-        yes_set_ar = {"نعم", "ايوه", "ايه", "نَعَم"}
-        no_set_ar = {"لا", "لأ", "لاا"}
+        # permissive yes/no sets (English + Arabic)
+        yes_set_en = {"yes", "yeah", "yup", "yep", "confirm", "correct", "ok", "okay", "sure"}
+        no_set_en  = {"no", "nah", "nope", "incorrect", "wrong"}
+        yes_set_ar = {"نعم", "ايوه", "ايه", "نَعَم", "أيوه"}
+        no_set_ar  = {"لا", "لأ", "لاا"}
 
         attempt = 0
         while attempt <= max_retries:
             attempt += 1
-            # record short reply
             audio = None
             stream = None
             tmp = None
@@ -923,13 +947,15 @@ class WeldingShopApp:
                 audio = pyaudio.PyAudio()
                 with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as t:
                     tmp = t.name
+
                 stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
-                # warm-up
+                # warm-up reads (ignore errors)
                 try:
                     for _ in range(2):
                         stream.read(4000, exception_on_overflow=False)
                 except Exception:
                     pass
+
                 frames = []
                 start = time.time()
                 rec_secs = 2.5
@@ -939,13 +965,15 @@ class WeldingShopApp:
                         frames.append(data)
                     except Exception:
                         pass
+
                 wf = wave.open(tmp, "wb")
                 wf.setnchannels(1)
                 wf.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
                 wf.setframerate(16000)
                 wf.writeframes(b"".join(frames))
                 wf.close()
-                # transcribe
+
+                # Transcribe if whisper available
                 if self.whisper_model:
                     try:
                         lang_code = "ar" if self.current_lang == "ar" else "en"
@@ -956,39 +984,56 @@ class WeldingShopApp:
                         response_text = ""
                 else:
                     response_text = ""
+                    print("[_voice_confirm] Warning: Whisper model not loaded for confirm.")
+
+                # cleanup tmp file
                 if tmp and os.path.exists(tmp):
                     try:
                         os.unlink(tmp)
                     except Exception:
                         pass
 
+                # no response -> retry or fallback
                 if not response_text:
                     if attempt <= max_retries:
                         self.speak_async(self.translations[self.current_lang].get("no_hear", "I didn't hear you. Please say yes or no."))
                         time.sleep(0.15)
                         continue
                     else:
-                        # fallback to GUI confirm
                         break
 
-                # tokenise (support Arabic unicode range too)
-                tokens = set(re.split(r"\s+|[^\w\u0600-\u06FF]+", response_text))
+                # DEBUG: show what we got
+                print(f"[_voice_confirm] recognized response: '{response_text}'")
+
+                # robust tokenization (supports Arabic)
+                tokens = set(re.findall(r"\b[\w\u0600-\u06FF']+\b", response_text))
+                print(f"[_voice_confirm] tokens: {tokens}")
+
+                # YES -> lock the field
                 if (tokens & yes_set_en) or (tokens & yes_set_ar):
-                    # confirmed -> lock field (main thread)
-                    self.speak_async(self.translations[self.current_lang].get("okay_retry", "Okay, please say it again."))
-                    self.root.after(0, lambda fid=field_id: self._clear_field(fid))  # Clears entry only
-                    self.root.after(0, lambda: self.status_label.configure(text="Cleared - please re-record"))
-                    self.root.after(2000, lambda: self.status_label.configure(text=""))
-                    return
-                if (tokens & no_set_en) or (tokens & no_set_ar):
-                    # rejected -> clear and recreate mic
-                    self.speak_async(self.translations[self.current_lang].get("okay_retry", "Okay, please say it again."))
-                    self.root.after(0, lambda fid=field_id: self._clear_field(fid))
-                    self.root.after(0, lambda: self.status_label.configure(text="Cleared - please re-record"))
-                    self.root.after(2000, lambda: self.status_label.configure(text=""))
+                    try:
+                        # Lock (make readonly/disabled)
+                        self.root.after(0, lambda fid=field_id: self._lock_field(fid))
+                        # Feedback
+                        self.speak_async(self.translations[self.current_lang].get("success_add", "Confirmed and locked"))
+                        self.root.after(0, lambda: self.status_label.configure(text="Confirmed and locked!"))
+                        self.root.after(2000, lambda: self.status_label.configure(text=""))
+                    except Exception as e:
+                        print(f"[_voice_confirm] error while locking: {e}")
                     return
 
-                # else unrecognized -> retry if attempts left
+                # NO -> clear the field so user can re-record
+                if (tokens & no_set_en) or (tokens & no_set_ar):
+                    try:
+                        self.root.after(0, lambda fid=field_id: self._clear_field(fid))
+                        self.speak_async(self.translations[self.current_lang].get("okay_retry", "Okay, please say it again."))
+                        self.root.after(0, lambda: self.status_label.configure(text="Cleared - please re-record"))
+                        self.root.after(2000, lambda: self.status_label.configure(text=""))
+                    except Exception as e:
+                        print(f"[_voice_confirm] error while clearing: {e}")
+                    return
+
+                # else -> unrecognized short reply, retry if attempts left
                 if attempt <= max_retries:
                     self.speak_async(self.translations[self.current_lang].get("no_catch", "I didn't catch that. Please say yes or no."))
                     time.sleep(0.15)
@@ -1018,7 +1063,7 @@ class WeldingShopApp:
                 except Exception:
                     pass
 
-        # fallback GUI confirm (runs on main thread)
+        # Fallback GUI confirm if voice path failed
         try:
             t = self.translations[self.current_lang]
             confirm_msg = t.get("confirm_text", "Is this correct: '{}'?").format(recognized_text)
@@ -1036,8 +1081,14 @@ class WeldingShopApp:
     def _insert_text_to_field(self, field_id, value):
         entry = self.get_entry_by_id(field_id)
         if entry:
-            entry.delete(0, "end")
-            entry.insert(0, value)
+            try:
+                if hasattr(entry, "delete") and hasattr(entry, "insert"):
+                    entry.delete(0, "end")
+                    entry.insert(0, value)
+                elif hasattr(entry, "config"):
+                    entry.config(text=value)
+            except Exception:
+                pass
 
     def _lock_field(self, field_id):
         """Lock the field (make readonly/disabled) and remove its mic button."""
@@ -1074,12 +1125,16 @@ class WeldingShopApp:
 
         # Clear entry
         try:
-            entry.configure(state="normal")
-            entry.delete(0, "end")
+            if hasattr(entry, "configure"):
+                entry.configure(state="normal")
+            if hasattr(entry, "delete"):
+                entry.delete(0, "end")
         except Exception:
             try:
-                entry.configure(state="normal")
-                entry.delete("1.0", "end")
+                if hasattr(entry, "configure"):
+                    entry.configure(state="normal")
+                if hasattr(entry, "delete"):
+                    entry.delete("1.0", "end")
             except Exception:
                 pass
 
