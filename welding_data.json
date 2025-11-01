@@ -1,6 +1,6 @@
 {
   "header": {
-    "contract_number": "2251-CE51",
+    "contract_number": "Manju Singh",
     "contract_title": "",
     "report_number": "",
     "date": "2025-10-31",
@@ -16,13 +16,41 @@
     "electrode_dia": "",
     "manufacturer_batch": "",
     "permit_holder_name": "",
+    "permit_holder_signature": "",
     "permit_holder_date": "",
     "qci_name": "",
+    "qci_signature": "",
     "qci_date": "",
-    "pdo_name": "",
+    "pdo_name": "ashu singh",
+    "pdo_signature": "",
     "pdo_date": "",
     "data_entry_name": "",
+    "data_entry_signature": "",
     "data_entry_date": ""
   },
-  "records": []
+  "records": [
+    {
+      "kp_sec": "",
+      "weld_id": "",
+      "wps_no": "",
+      "material_gr_heat": "",
+      "size": "",
+      "thk": "",
+      "weld_side": "",
+      "welder_process": "",
+      "visual_i": "1.",
+      "visual_ii": "",
+      "root_hot": "",
+      "fill1": "",
+      "fill2": "",
+      "cap": "",
+      "final": "",
+      "fit_up": "",
+      "mtrl_comb": "",
+      "pipe_line": "",
+      "pipe_no": "",
+      "pipe_length": "",
+      "remarks": ""
+    }
+  ]
 }
