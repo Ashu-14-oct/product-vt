@@ -507,7 +507,8 @@ class WeldingShopApp:
                         "welder_process", "visual_i", "visual_ii", "root_hot", "fill1", "fill2", "cap", "final",
                         "fit_up", "mtrl_comb", "pipe_line", "pipe_no", "pipe_length", "remarks"]
         col_labels = [t["table_headers"].get(f, f) for f in header_fields]
-        col_widths = [48, 60, 100, 80, 170, 70, 60, 80, 220, 110, 110, 70, 70, 70, 70, 70, 70, 100, 90, 120, 110, 160]
+        # Adjusted widths: Increased space for fill1, fill2, cap to prevent header text overlap
+        col_widths = [48, 60, 100, 80, 170, 70, 60, 80, 220, 110, 110, 70, 100, 100, 100, 70, 70, 100, 90, 120, 110, 160]
         header_h = 44
         row_h = 36
         nrows = 10
