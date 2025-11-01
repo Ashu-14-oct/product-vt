@@ -374,34 +374,35 @@ class WeldingShopApp:
         main_scroll = ctk.CTkScrollableFrame(self.root, corner_radius=10)
         main_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Header main frame - transparent
-        header_main = ctk.CTkFrame(main_scroll, fg_color="transparent")
-        header_main.pack(fill="x", pady=10)
+        # Header row - transparent, containing logo left and stacked headers right
+        header_row = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        header_row.pack(fill="x", pady=10)
 
         t = self.translations[self.current_lang]
 
-        # Logo left - fixed width
-        logo_fr = ctk.CTkFrame(header_main, fg_color="transparent", width=150)
+        # Logo left - fixed width, height to match combined headers (160px)
+        logo_fr = ctk.CTkFrame(header_row, fg_color="transparent", width=150, height=160)
         logo_fr.pack(side="left", fill="y", padx=(50, 30))
         logo_fr.grid_propagate(False)
         try:
-            logo_img = ctk.CTkImage(light_image=Image.open("logo.png"), size=(120, 100))
+            logo_img = ctk.CTkImage(light_image=Image.open("logo.png"), size=(120, 140))  # Increased height for logo image
             logo_lbl = ctk.CTkLabel(logo_fr, image=logo_img, text="")
             logo_lbl.pack(pady=10)
         except Exception as e:
             print(f"Logo load error: {e}")
             logo_lbl = ctk.CTkLabel(logo_fr, text="LOGO", font=ctk.CTkFont(size=12, weight="bold"))
             logo_lbl.pack(pady=10)
+            quality_lbl = ctk.CTkLabel(logo_fr, text="Quality You Can Build", font=ctk.CTkFont(size=8))
+            quality_lbl.pack(pady=(0, 10))
+        # Arabic text below if needed, but assuming in logo image
 
-        # Right side: Orange block for company name
-        right_header = ctk.CTkFrame(header_main, fg_color="transparent")
-        right_header.pack(side="right", fill="both", expand=True)
-        top_spacer = ctk.CTkFrame(right_header, fg_color="transparent", height=20)
-        top_spacer.pack(fill="x")
-        top_spacer.grid_propagate(False)
+        # Right side: Stacked orange and blue blocks
+        right_side = ctk.CTkFrame(header_row, fg_color="transparent")
+        right_side.pack(side="right", fill="both", expand=True)
 
-        orange_block = ctk.CTkFrame(right_header, fg_color="#FF8C00", height=80, corner_radius=0)
-        orange_block.pack(fill="x")
+        # Orange block for company name - height=100
+        orange_block = ctk.CTkFrame(right_side, fg_color="#FF8C00", height=100, corner_radius=0)
+        orange_block.pack(fill="x", pady=(0, 0))
         orange_block.grid_propagate(False)
         company_lbl = ctk.CTkLabel(
             orange_block,
@@ -409,10 +410,10 @@ class WeldingShopApp:
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="white"
         )
-        company_lbl.pack(expand=True, pady=10)
+        company_lbl.pack(expand=True, pady=20)
 
-        # Below header_main: Blue block for form title (full width)
-        form_block = ctk.CTkFrame(main_scroll, fg_color="#000080", height=40, corner_radius=0)
+        # Blue block for form title, directly below orange in right_side - height=60
+        form_block = ctk.CTkFrame(right_side, fg_color="#000080", height=60, corner_radius=0)
         form_block.pack(fill="x", pady=(0, 10))
         form_block.grid_propagate(False)
         form_lbl = ctk.CTkLabel(
@@ -421,10 +422,10 @@ class WeldingShopApp:
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color="white"
         )
-        form_lbl.pack(expand=True, pady=10)
+        form_lbl.pack(expand=True, pady=15)
 
-        # Fields block - light blue divided header block
-        fields_block = ctk.CTkFrame(main_scroll, fg_color="#E6F3FF", corner_radius=10, border_width=2, border_color="#000080")
+        # Fields block - light blue divided header block, border to black thin
+        fields_block = ctk.CTkFrame(main_scroll, fg_color="#E6F3FF", corner_radius=10, border_width=1, border_color="black")
         fields_block.pack(fill="x", pady=5)
 
         # Status label in fields_block bottom right
@@ -474,14 +475,14 @@ class WeldingShopApp:
         ctk.CTkLabel(middle_group, text=t["location"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["location"] = self.create_entry_with_click_voice(middle_group, "header_location", row=3, col=1, pady=3)
 
-        # Right group fields
-        ctk.CTkLabel(right_group, text=t["date"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=0, sticky="w", padx=5, pady=3)
-        date_entry = ctk.CTkEntry(right_group, width=150, fg_color="white")
+        # Right group fields - Adjusted row order to match image: Report No row0, Date row1, Project row2, Site row3
+        ctk.CTkLabel(right_group, text=t["report_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=0, column=0, sticky="w", padx=5, pady=3)
+        self.header_entries["report_number"] = self.create_entry_with_click_voice(right_group, "header_report_number", row=0, col=1, pady=3)
+        ctk.CTkLabel(right_group, text=t["date"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=1, column=0, sticky="w", padx=5, pady=3)
+        date_entry = ctk.CTkEntry(right_group, fg_color="white")
         date_entry.insert(0, self.header_data.get("date", ""))
-        date_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=3, columnspan=1)
+        date_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=3)
         self.header_entries["date"] = date_entry
-        ctk.CTkLabel(right_group, text=t["report_number"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=1, column=0, sticky="w", padx=5, pady=3)
-        self.header_entries["report_number"] = self.create_entry_with_click_voice(right_group, "header_report_number", row=1, col=1, pady=3)
         ctk.CTkLabel(right_group, text=t["project_title_wellID"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=2, column=0, sticky="w", padx=5, pady=3)
         self.header_entries["project_title_wellID"] = self.create_entry_with_click_voice(right_group, "header_project_title_wellID", row=2, col=1, pady=3)
         ctk.CTkLabel(right_group, text=t["site_name"], font=ctk.CTkFont(weight="bold"), text_color="navy").grid(row=3, column=0, sticky="w", padx=5, pady=3)
