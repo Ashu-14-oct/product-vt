@@ -1,68 +1,56 @@
-[
-  {
-    "id": 1761732719.147088,
-    "job_id": "513201",
-    "weld_id": "553126.",
-    "kp_sec": "342",
-    "wps_no": "342",
-    "material_gr": "Off to shore it is some place",
-    "heat_no": "5120321890.",
-    "size": "55.",
-    "thk": "65.9688.",
-    "weld_side": "left side of the iron piece",
-    "root": "I dont know but can you tell me",
-    "material_comb": "There is a mixture of iron and black powder",
-    "pipe_no": "55 centimeter",
-    "pipe_length": "26 meters",
-    "welder_name": "Ashu Singh",
-    "material": "black powder and iron",
-    "weld_type": "Well type is something that I dont know",
-    "description": "We are really good at welding the irons and",
-    "date": "2025-10-29"
+{
+  "header": {
+    "contract_number": "Manju Singh",
+    "contract_title": "",
+    "report_number": "",
+    "date": "2025-10-31",
+    "po_wo_number": "",
+    "client_wps_number": "",
+    "project_title_wellID": "",
+    "drawing_no": "",
+    "line_no": "",
+    "site_name": "",
+    "job_desc": "",
+    "location": "",
+    "aws_classification": "",
+    "electrode_dia": "",
+    "manufacturer_batch": "",
+    "permit_holder_name": "",
+    "permit_holder_signature": "",
+    "permit_holder_date": "",
+    "qci_name": "",
+    "qci_signature": "",
+    "qci_date": "",
+    "pdo_name": "ashu singh",
+    "pdo_signature": "",
+    "pdo_date": "",
+    "data_entry_name": "",
+    "data_entry_signature": "",
+    "data_entry_date": ""
   },
-  {
-    "id": 1761712784.030853,
-    "job_id": "53",
-    "welder_name": "john",
-    "material": "iron",
-    "weld_type": "black",
-    "description": "something",
-    "date": "2025-10-29"
-  },
-  {
-    "id": 1761672926.241899,
-    "job_id": "532",
-    "welder_name": "john cena",
-    "material": "metal metal",
-    "weld_type": "something",
-    "description": "",
-    "date": "2025-10-28"
-  },
-  {
-    "id": 1761668538.009028,
-    "job_id": "53",
-    "welder_name": "john",
-    "material": "65",
-    "weld_type": "metal",
-    "description": "something",
-    "date": "2025-10-28"
-  },
-  {
-    "id": 1761660400.758858,
-    "job_id": "1",
-    "welder_name": "john",
-    "material": "metal",
-    "weld_type": "the hv or bar days",
-    "description": "something",
-    "date": "2025-10-28"
-  },
-  {
-    "id": 1761657214.718677,
-    "job_id": "234",
-    "welder_name": "ashu",
-    "material": "sas",
-    "weld_type": "sada",
-    "description": "dsad",
-    "date": "2025-10-29"
-  }
-]
+  "records": [
+    {
+      "kp_sec": "",
+      "weld_id": "",
+      "wps_no": "",
+      "material_gr_heat": "",
+      "size": "",
+      "thk": "",
+      "weld_side": "",
+      "welder_process": "",
+      "visual_i": "1.",
+      "visual_ii": "",
+      "root_hot": "",
+      "fill1": "",
+      "fill2": "",
+      "cap": "",
+      "final": "",
+      "fit_up": "",
+      "mtrl_comb": "",
+      "pipe_line": "",
+      "pipe_no": "",
+      "pipe_length": "",
+      "remarks": ""
+    }
+  ]
+}
